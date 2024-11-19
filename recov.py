@@ -1,6 +1,7 @@
 import pandas as pd
 import seaborn as sns
 import numpy as np
+from typing import Any, Union
 from skimage.data import shepp_logan_phantom
 from skimage import transform
 from scipy.fft import fft2, ifft2
@@ -89,12 +90,16 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, m
             break
     return x
 
-sqt_n=32
-df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 3, integer=True), 'sigma': [0.0001, 0.01, 1.0]})
-df.attrs={"label":"test"}
-add_standard_attributes(df)
+def make_df():
+    sqt_n=32
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 3, integer=True), 'sigma': [0.0001, 0.01, 1.0]})
+    df.attrs={"label":"test"}
+    add_standard_attributes(df)
+    return df
 
-def experiment(data:dict)-> pd.Series:
+df = make_df()
+
+def experiment(data:Union[dict, pd.Series])-> dict[str, Any]:
     np.random.seed(data['seed'])
     sqt_n= int(data['sqt_n'])
     n=sqt_n**2
@@ -105,13 +110,16 @@ def experiment(data:dict)-> pd.Series:
     sigma = data['sigma']
     SF = SF_func(indices)
     b = SF(features) + sigma * np.random.normal(0, 1, m)
-    x_hat = lasso_wr_Fourier(n, m , indices, b, np.zeros((sqt_n, sqt_n), dtype=np.float32), 0.001, max_iter=100)
+    x_hat = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), 0.001, max_iter=100)
     recovered_img = idwt2(unsquare_haar(x_hat), "haar")
     rre = np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
-    return pd.Series({'recovered_img':recovered_img,'rre': rre})
+    return {'recovered_img':recovered_img,'rre': rre}
 
-result_df = run_local_df_experiment(df, experiment, ('recovered_img','rre'))
-sns.lineplot(result_df, x= 'm', y='rre', xscale='log')
+
+result_df = run_local_df_experiment(df, experiment)
+
+sns.lineplot(result_df, x= 'm', y='rre')
+
 plt.xscale('log')
 plt.yscale('log')
 
