@@ -1,4 +1,4 @@
-from itertools import chain
+import pandas as pd
 import seaborn as sns
 import numpy as np
 from skimage.data import shepp_logan_phantom
@@ -6,29 +6,9 @@ from skimage import transform
 from scipy.fft import fft2, ifft2
 import matplotlib.pyplot as plt
 from pywt import dwt2, idwt2
-from utils import logspace, allcombinations
+from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment
 import matplotlib.pyplot as plt
 from scipy.fft import fft2, ifft2
-
-# def l1_wavelet(wav):
-#     sum = np.sum(np.abs(wav[0]))
-#     for elt in wav[1:]:
-#         for sub_mat in elt:
-#             sum+= np.sum(np.abs(sub_mat))
-#     return sum
-
-# def flatten_haar(wav:tuple):
-#     return np.concatenate((wav[0].ravel(), *(w.ravel() for w in chain(*wav[1:]))))
-
-# def shape_up_haar(arr:np.ndarray):
-#     size = arr.shape[0]
-#     midpoint = size // 4
-#     square_size = int(midpoint**0.5)
-#     cA = arr[:midpoint].reshape((square_size, square_size))
-#     cH = arr[midpoint:(midpoint*2)].reshape((square_size, square_size))
-#     cV = arr[(midpoint*2):(midpoint*3)].reshape((square_size, square_size))
-#     cD = arr[(midpoint*3):(midpoint*4)].reshape((square_size, square_size))
-#     return (cA, (cH, cV, cD))
 
 def square_haar(wav:tuple):
     (cA, part) = wav
@@ -70,31 +50,32 @@ def wr_prob_vec(loc_co):
     return loc_co**2/np.sum(loc_co**2)
 
 def Bernoulli_prob_weights(loc_co, m, n):
+    assert (loc_co > 0).all()
+    assert m < n
     sorted_co = np.sort(loc_co)
     J = n
-    def Lsqrd(j):
+    def Lsqrd(j, m, n, sorted_co):
         return m * np.sum(sorted_co[:j]**2)/ (m - (n-j))
-    for j in range(n-1, 0, -1):
-        if m* sorted_co[j]**2 < Lsqrd(j):
+    for j in range(n, n-m-1, -1):
+        if m*sorted_co[j-1]**2 < Lsqrd(j, m, n, sorted_co):
             J = j
             break
-    Lsqr = Lsqrd(J)
+    Lsqr = Lsqrd(J, m, n, sorted_co)
     return np.clip(m * loc_co**2 / Lsqr, 0, 1), J, Lsqr
 
-n = 10
-m = 6
 loc_co = np.random.rand(10)
-sns.barplot(Bernoulli_prob_weights(loc_co, m, n)[0])
-sns.barplot(loc_co)
-
-np.sum(Bernoulli_prob_weights(loc_co, m, n)[0])
-
+n = 10
+m = 5
+assert np.sum(Bernoulli_prob_weights(loc_co, m, n)[0])==m
 
 # Try to make this not too terrible.
 # Model is minimize \|D_tld(b- SFx_hat)\|_2^2 + lambda \|x_hat\|_1 with prox descent
-def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=np.ones(n), max_iter=100, tol=1e-4):
+
+def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, max_iter=100, tol=1e-4):
     """LASSO solver using Iterative Soft Thresholding Algorithm (ISTA)"""
     L = 2
+    if D == None:
+        D = np.ones(n)
     D_tld=D[indices]
     x_old = np.zeros_like(x)
     SF = SF_func(indices)
@@ -109,19 +90,32 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=np.ones
     return x
 
 sqt_n=32
-true_signal = transform.resize(shepp_logan_phantom(), (sqt_n, sqt_n))
-features=square_haar(dwt2(true_signal, "haar"))
-plt.imshow(features)
+df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 3, integer=True), 'sigma': [0.0001, 0.01, 1.0]})
+df.attrs={"label":"test"}
+add_standard_attributes(df)
 
-n=sqt_n**2
-m = n // 5
-indices = np.random.choice(n,m)
+def experiment(data:dict)-> pd.Series:
+    np.random.seed(data['seed'])
+    sqt_n= int(data['sqt_n'])
+    n=sqt_n**2
+    m = int(data['m'])
+    true_signal = transform.resize(shepp_logan_phantom(), (sqt_n, sqt_n))
+    features=square_haar(dwt2(true_signal, "haar"))
+    indices = np.random.choice(n,m,replace=True)
+    sigma = data['sigma']
+    SF = SF_func(indices)
+    b = SF(features) + sigma * np.random.normal(0, 1, m)
+    x_hat = lasso_wr_Fourier(n, m , indices, b, np.zeros((sqt_n, sqt_n), dtype=np.float32), 0.001, max_iter=100)
+    recovered_img = idwt2(unsquare_haar(x_hat), "haar")
+    rre = np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
+    return pd.Series({'recovered_img':recovered_img,'rre': rre})
 
-sigma = 0.000
-SF = SF_func(indices)
-b = SF(features) + sigma * np.random.normal(0, 1, m)
+result_df = run_local_df_experiment(df, experiment, ('recovered_img','rre'))
+sns.lineplot(result_df, x= 'm', y='rre', xscale='log')
+plt.xscale('log')
+plt.yscale('log')
 
-x_hat = lasso_wr_Fourier(n, m , indices, b, np.zeros((sqt_n, sqt_n), dtype=np.float32), 0.001, max_iter=100)
-plt.imshow(np.concatenate((true_signal, idwt2(unsquare_haar(x_hat), "haar")), axis=1))
+result_df.columns
+result_df.attrs
 
-np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
+# plt.imshow(np.concatenate((true_signal, idwt2(unsquare_haar(x_hat), "haar")), axis=1))
