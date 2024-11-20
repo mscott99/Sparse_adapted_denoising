@@ -9,7 +9,6 @@ from utils import logspace, allcombinations, add_standard_attributes, run_local_
 import matplotlib.pyplot as plt
 from scipy.fft import fft2, ifft2
 
-
 def square_haar(wav:tuple):
     (cA, part) = wav
     (cH, cV, cD) = part
@@ -78,9 +77,9 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, m
     return x
 
 def make_df():
-    sqt_n=32
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 3, integer=True), 'sigma': [0.0001, 0.01, 1.0]})
-    df.attrs={"label":"test"}
+    sqt_n=100
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 4, integer=True), 'sigma': [0.0001, 0.01, 1.0]})
+    df.attrs={"label":"figure_out_test"}
     add_standard_attributes(df)
     return df
 
