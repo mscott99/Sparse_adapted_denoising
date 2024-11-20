@@ -6,7 +6,7 @@ from skimage.data import shepp_logan_phantom
 from skimage import transform
 from scipy.fft import fft2, ifft2
 from pywt import dwt2, idwt2
-from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment
+from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat
 import matplotlib.pyplot as plt
 from scipy.fft import fft2, ifft2
 
@@ -78,9 +78,13 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, m
     return x
 
 def make_df():
-    sqt_n=200
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 10, integer=True), 'sigma': 0.0001})
-    df.attrs={"label":"unif_recov_curve"}
+    seed = 1234
+    np.random.seed(seed)
+    sqt_n=100 #original size
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 12, integer=True), 'sigma': [0.0001, 0.01, 1.0, 100.0]})
+    df = repeat(df, 5)
+    df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
+    df.attrs={"label":"unif_recov_curve", "global_seed":seed}
     add_standard_attributes(df)
     return df
 
