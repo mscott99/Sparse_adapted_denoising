@@ -1,4 +1,5 @@
 import pandas as pd
+from time import time
 import numpy as np
 from typing import Any, Union
 from skimage.data import shepp_logan_phantom
@@ -77,14 +78,15 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, m
     return x
 
 def make_df():
-    sqt_n=100
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 4, integer=True), 'sigma': [0.0001, 0.01, 1.0]})
-    df.attrs={"label":"figure_out_test"}
+    sqt_n=200
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 10, integer=True), 'sigma': 0.0001})
+    df.attrs={"label":"unif_recov_curve"}
     add_standard_attributes(df)
     return df
 
 def experiment(data:Union[dict, pd.Series])-> dict[str, Any]:
     np.random.seed(data['seed'])
+    start_time = time()
     sqt_n= int(data['sqt_n'])
     n=sqt_n**2
     m = int(data['m'])
@@ -97,4 +99,5 @@ def experiment(data:Union[dict, pd.Series])-> dict[str, Any]:
     x_hat = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), 0.001, max_iter=100)
     recovered_img = idwt2(unsquare_haar(x_hat), "haar")
     rre = np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
-    return {'recovered_img':recovered_img,'rre': rre}
+    run_time = time()-start_time
+    return {'rre': rre, 'runtime_seconds': run_time}
