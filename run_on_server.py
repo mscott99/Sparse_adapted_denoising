@@ -79,7 +79,7 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, m
         fits[ind] = np.linalg.norm(residual)**2
         regs[ind] = np.sum(np.abs(x))
         gradient = -2*np.real(SF_transpose(D_tld**2*residual))
-        x = soft_threshold(x - gradient / L, lambda_/L)
+        x = soft_threshold(x - gradient / L, lambda_)
         if np.linalg.norm(x - x_old) < tol:
             break
     return x, fits, regs
@@ -104,7 +104,7 @@ def make_df():
     seed = 1234
     np.random.seed(seed)
     sqt_n=100 #original size
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2*3, 12, integer=True), 'sigma': [0.0001, 0.01, 1.0, 100.0]})
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2*3, 12, integer=True), 'sigma': [0.0001, 0.01, 1.0, 100.0], 'lambda':0.001, 'tol':0.00001})
     df = repeat(df, 5)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     df.attrs={"label":"unif_recov_curve_fixed", "global_seed":seed}
@@ -123,7 +123,7 @@ def experiment(data:Union[dict, pd.Series])-> dict[str, Any]:
     sigma = data['sigma']
     SF = SF_func(indices)
     b = SF(features) + sigma * np.random.normal(0, 1, m)
-    x_hat, fits, regs = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), data['lambda'], max_iter=100)
+    x_hat, fits, regs = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), data['lambda'], max_iter=1000, tol = data['tol'])
     recovered_img = idwt2(unsquare_haar(x_hat), "haar")
     dist = np.linalg.norm(x_hat - features)
     rre = np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
