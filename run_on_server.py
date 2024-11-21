@@ -101,13 +101,13 @@ def make_local_df():
 # np.max(result['rre'])
 
 def make_df():
+    sqt_n=100
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1e2, sqt_n**2*2, 6, integer=True), 'sigma': [0, 2e-1, 4e-1, 8e-1], 'lambda':0.001, 'tol':0.0001})
+    df = repeat(df, 3)
     seed = 1234
     np.random.seed(seed)
-    sqt_n=100
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(int(10**(1.5)), sqt_n**2*2, 8, integer=True), 'sigma': [0,1e-3, 1e-2, 1e-1, 1.0, 1e1], 'lambda':0.001, 'tol':0.0001})
-    df = repeat(df, 3)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-    df.attrs={"label":"unif_noisy", "global_seed":seed}
+    df.attrs={"label":"fixed", "global_seed":seed}
     add_standard_attributes(df)
     return df
 
@@ -122,11 +122,12 @@ def experiment(data:Union[dict, pd.Series])-> dict[str, Any]:
     indices = np.random.choice(n,m,replace=True)
     sigma = data['sigma']
     SF = SF_func(indices)
-    feature_size=np.linalg.norm(features)
-    b = np.sqrt(n/m)*SF(features) + sigma * feature_size * np.random.normal(0, 1/np.sqrt(m), m)
-    x_hat, fits, regs = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), data['lambda'], tol = data['tol'])
+    unit_features=features/np.linalg.norm(features)
+    b = np.sqrt(n/m)*SF(unit_features) + sigma * np.random.normal(0, 1/np.sqrt(m), m)
+    tol = data['tol']
+    assert isinstance(tol, float) # Because of type warning
+    x_hat, fits, regs = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), data['lambda'], tol = tol)
     # recovered_img = idwt2(unsquare_haar(x_hat), "haar")
-    dist = np.linalg.norm(x_hat - features)
-    rre = np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
+    rre = np.linalg.norm(x_hat - unit_features)
     run_time = time()-start_time
-    return {'rre': rre, 'runtime_seconds': run_time, 'fits': fits, 'regs': regs, 'dist': dist, 'indices': indices}
+    return {'rre': rre, 'runtime_seconds': run_time, 'fits': fits, 'regs': regs, 'indices': indices}

@@ -1,3 +1,4 @@
+from matplotlib.colors import LogNorm
 import seaborn as sns
 import numpy as np
 import pandas as pd
@@ -7,10 +8,8 @@ import matplotlib.pyplot as plt
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df = pd.read_pickle("./data/fixed_4.pickle")
-
-len(df)
-len(df[df['m']==9999])
+df = pd.read_pickle("./data/noisy_unif_5.pickle")
+assert isinstance(df, pd.DataFrame)
 
 df.columns
 
@@ -28,7 +27,7 @@ df['rre']
 df['runtime_seconds'].max()
 
 plt.figure()
-sns.lineplot(df, x="rel_m", y="rre", hue="sigma")
+sns.lineplot(df, x="m", y="rre", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), errorbar="se")
 plt.xscale("log")
 plt.yscale("log")
 
