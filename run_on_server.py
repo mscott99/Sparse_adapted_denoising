@@ -78,7 +78,7 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, m
         residual = (b - np.sqrt(n/m)*SF(x))
         fits[ind] = np.linalg.norm(residual)**2
         regs[ind] = np.sum(np.abs(x))
-        gradient = -2*np.real(np.sqrt(n/m)SF_transpose(D_tld**2*residual))
+        gradient = -2*np.real(np.sqrt(n/m)*SF_transpose(D_tld**2*residual))
         x = soft_threshold(x - gradient / L, lambda_)
         if np.linalg.norm(x - x_old) < tol:
             break
@@ -124,7 +124,7 @@ def experiment(data:Union[dict, pd.Series])-> dict[str, Any]:
     SF = SF_func(indices)
     b = np.sqrt(n/m)*SF(features) + sigma * np.random.normal(0, 1/np.sqrt(m), m)
     x_hat, fits, regs = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), data['lambda'], max_iter=1000, tol = data['tol'])
-    recovered_img = idwt2(unsquare_haar(x_hat), "haar")
+    # recovered_img = idwt2(unsquare_haar(x_hat), "haar")
     dist = np.linalg.norm(x_hat - features)
     rre = np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
     run_time = time()-start_time
