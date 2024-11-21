@@ -1,26 +1,33 @@
 import seaborn as sns
 import numpy as np
 import pandas as pd
+from utils import repeat
 import matplotlib.pyplot as plt
 
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df = pd.read_pickle("./data/unif_recov.pickle")
+df = pd.read_pickle("./data/sweep_noisy_unif_run.pickle")
+
+len(df)
+len(df[df['m']==9999])
 
 df.columns
 
 np.mean(df["runtime_seconds"])
 # 24 seconds
 
-df['sqt_n']**2-1
-
-
-df['m']
-
 df['rel_m'] = df['m']/df['sqt_n']**2
 
-sns.lineplot(df, x="rel_m", y="rre", hue="sigma")
+df['m']
+df= repeat(df, 3)
+
+len(df)
+
+df['rre']
+
+sns.lineplot(df, x="rel_m", y="rre", hue="sigma", error)
+
 plt.xscale("log")
 plt.yscale("log")
 

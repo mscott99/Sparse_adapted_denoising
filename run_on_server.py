@@ -59,32 +59,55 @@ def unsquare_haar(mat):
     cH=mat[:midpoint, midpoint:]
     return (cA, (cV,cH, cD))
 
-def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, max_iter=100, tol=1e-4):
-    """LASSO solver using Iterative Soft Thresholding Algorithm (ISTA)"""
-    L = 2
+def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, max_iter=1000, tol=1e-5):
+    """LASSO solver using Iterative Soft Thresholding Algorithm (ISTA)
+    If no resampling, set L to 2
+    """
+    # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
+    L = 2* np.max(np.unique(indices, return_counts=True)[1])
     if D == None:
         D = np.ones(n)
     D_tld=D[indices]
     x_old = np.zeros_like(x)
     SF = SF_func(indices)
     SF_transpose=SF_transpose_map(n, m, indices)
-    for _ in range(max_iter):
+    fits = np.zeros(max_iter)
+    regs = np.zeros(max_iter)
+    for ind in range(max_iter):
         x_old[:,:] = x
         residual = (b - SF(x))
-        gradient = SF_transpose(D_tld**2*residual).astype(np.float32)
-        x = soft_threshold(x + gradient / L, lambda_ / L)
+        fits[ind] = np.linalg.norm(residual)**2
+        regs[ind] = np.sum(np.abs(x))
+        gradient = -2*np.real(SF_transpose(D_tld**2*residual))
+        x = soft_threshold(x - gradient / L, lambda_/L)
         if np.linalg.norm(x - x_old) < tol:
             break
-    return x
+    return x, fits, regs
+
+def make_local_df():
+    sqt_n=32 #original size
+    df= allcombinations({'sqt_n': sqt_n,'m': sqt_n**2*2, 'lambda': 0.000001, 'sigma': 0.0000})
+    df = repeat(df, 2)
+    df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
+    add_standard_attributes(df)
+    return df
+
+# local_df =  make_local_df()
+# result = run_local_df_experiment(local_df, experiment)
+# plt.figure()
+# plt.plot(result['fits'][0])
+# plt.plot(result['regs'][0])
+# plt.yscale('log')
+# np.max(result['rre'])
 
 def make_df():
     seed = 1234
     np.random.seed(seed)
     sqt_n=100 #original size
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2-1, 12, integer=True), 'sigma': [0.0001, 0.01, 1.0, 100.0]})
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1,sqt_n**2*3, 12, integer=True), 'sigma': [0.0001, 0.01, 1.0, 100.0]})
     df = repeat(df, 5)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-    df.attrs={"label":"unif_recov_curve", "global_seed":seed}
+    df.attrs={"label":"unif_recov_curve_fixed", "global_seed":seed}
     add_standard_attributes(df)
     return df
 
@@ -100,8 +123,9 @@ def experiment(data:Union[dict, pd.Series])-> dict[str, Any]:
     sigma = data['sigma']
     SF = SF_func(indices)
     b = SF(features) + sigma * np.random.normal(0, 1, m)
-    x_hat = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), 0.001, max_iter=100)
+    x_hat, fits, regs = lasso_wr_Fourier(n, m , indices, b, np.zeros([sqt_n, sqt_n], dtype=np.float32), data['lambda'], max_iter=100)
     recovered_img = idwt2(unsquare_haar(x_hat), "haar")
+    dist = np.linalg.norm(x_hat - features)
     rre = np.linalg.norm(x_hat - features)/ np.linalg.norm(features)
     run_time = time()-start_time
-    return {'rre': rre, 'runtime_seconds': run_time}
+    return {'rre': rre, 'runtime_seconds': run_time, 'fits': fits, 'regs': regs, 'dist': dist}
