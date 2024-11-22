@@ -5,6 +5,7 @@ from typing import Any, Union
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
 from scipy.fft import fft2, ifft2
+from scipy import sparse
 from pywt import dwt2, idwt2
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat
 import matplotlib.pyplot as plt
@@ -25,10 +26,11 @@ def SF_func(indices):
     return lambda x : fft2(x, norm="ortho").flat[indices]
 
 def S_transpose(indices, m,n):
-    S = np.zeros((m,n)) 
-    for (i, idx) in enumerate(indices):
-        S[i, idx] = 1
-    return np.transpose(S)
+    S = sparse.coo_matrix((np.ones(indices.shape[0]), (indices, range(m))), shape=(n,m))
+    return S
+
+# indices = np.random.choice(100, 10)
+# S_transpose(indices, 10, 100)
 
 def SF_transpose_map(n, m, indices):
     sqt_n = int(n**0.5)
@@ -84,16 +86,17 @@ def lasso_wr_Fourier(n,m,indices, b:np.ndarray, x:np.ndarray, lambda_, D=None, m
             break
     return x, fits, regs
 
-def make_local_df():
-    sqt_n=32 #original size
-    df= allcombinations({'sqt_n': sqt_n,'m': sqt_n**2*2, 'lambda': 0.000001, 'sigma': 0.0000})
-    df = repeat(df, 2)
-    df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-    add_standard_attributes(df)
-    return df
+# def make_local_df():
+#     sqt_n=100
+#     df= allcombinations({'sqt_n': sqt_n,'m': int(sqt_n**2/2), 'lambda': 0.000001, 'sigma': 0.0000, 'tol':1e-4})
+#     df = repeat(df, 2)
+#     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
+#     add_standard_attributes(df)
+#     return df
 
 # local_df =  make_local_df()
 # result = run_local_df_experiment(local_df, experiment)
+
 # plt.figure()
 # plt.plot(result['fits'][0])
 # plt.plot(result['regs'][0])
@@ -101,8 +104,8 @@ def make_local_df():
 # np.max(result['rre'])
 
 def make_df():
-    sqt_n=32
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1e2, sqt_n**2*2, 2, integer=True), 'sigma': 0, 'lambda':0.001, 'tol':0.0001})
+    sqt_n=100
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1e2, sqt_n**2*3, 2, integer=True), 'sigma': 0, 'lambda':0.001, 'tol':0.0001})
     # df = repeat(df, 1)
     seed = 1234
     np.random.seed(seed)
