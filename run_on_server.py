@@ -101,9 +101,9 @@ def make_local_df():
 # np.max(result['rre'])
 
 def make_df():
-    sqt_n=100
-    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1e2, sqt_n**2*2, 6, integer=True), 'sigma': [0, 2e-1, 4e-1, 8e-1], 'lambda':0.001, 'tol':0.0001})
-    df = repeat(df, 3)
+    sqt_n=32
+    df= allcombinations({'sqt_n': sqt_n,'m': logspace(1e2, sqt_n**2*2, 2, integer=True), 'sigma': 0, 'lambda':0.001, 'tol':0.0001})
+    # df = repeat(df, 1)
     seed = 1234
     np.random.seed(seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
