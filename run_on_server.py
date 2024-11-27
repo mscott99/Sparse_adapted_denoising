@@ -119,7 +119,6 @@ def make_df():
     df.attrs = {"label": "fixed", "global_seed": seed, "save_img": False}
     add_standard_attributes(df)
     df = soft_astype_df(df, ExperimentTypes)
-    print(df.dtypes)
     return df
 
 class ExperimentData(TypedDict):
@@ -165,7 +164,6 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
     data['loc_co'] = np.repeat(1/np.sqrt(n), n)
     d = None
     if data['sampling_type'] == "wr":
-        print("wr")
         if data['adapted_sampling'] == True:
             assert 'loc_co' in data
             p = data['loc_co']**2/np.sum(data['loc_co']**2)
@@ -175,7 +173,6 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
         else:
             indices = np.random.choice(n, m, replace=True)
     elif data['sampling_type'] == "Ber":
-        print("Ber")
         if data['adapted_sampling']:
             assert "loc_co" in data
             weights = Bernoulli_prob_weights(data['loc_co'], data['m'])[0]
@@ -189,10 +186,8 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
     m_tld = indices.size
     unit_features = features/np.linalg.norm(features)
     signal= SF(unit_features)
-    print(signal.size)
     noise= data['sigma'] * \
         np.random.normal(0, 1/np.sqrt(m), m_tld)
-    print(noise.size)
     b = signal + noise
     x_hat, fits, regs = lasso_wr_Fourier(n, m, indices, b, np.zeros(
         [sqt_n, sqt_n], dtype=np.float32), data['lambda_'], tol=data['tol'], d=d)
