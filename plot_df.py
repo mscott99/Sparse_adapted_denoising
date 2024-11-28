@@ -8,27 +8,20 @@ import matplotlib.pyplot as plt
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df = pd.read_pickle("./data/larger_8.pickle")
+df = pd.read_pickle("./data/mylarger.pickle")
 
-df = df[df['TRACEBACK'].isna()] # Had errors with m too large
-error_df = df[df['TRACEBACK'].notna()]
+df = df[df['ERROR'].isna()] # Had errors with m too large
+error_df = df[df['ERROR'].notna()]
 
 df.columns
 
 df['tld_acc'] = df['m_tld']/df['m']
-
-df.iloc[1]
-
 plt.figure()
 sns.barplot(df['tld_acc'], width = 50)
 
 sns.relplot(df, kind = "line", x = "m", y = "rrep", col = "sampling_type", style = "lambda_", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
 plt.xscale("log")
 plt.yscale("log")
-
-400**2
-
-len(df)
 
 indices= [1,2,3,4]
 np.max(np.unique(indices, return_counts=True)[1])
