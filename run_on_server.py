@@ -1,5 +1,5 @@
 from numpy.typing import NDArray
-from matplotlib.pyplot import plot as plt
+import matplotlib.pyplot as plt
 import pandas as pd
 from time import time
 import datetime
@@ -7,18 +7,16 @@ import numpy as np
 from typing import TypedDict, NotRequired, Literal, Any, Tuple
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
-from scipy.fft import fft2, ifft2
 from scipy import sparse
 from pywt import dwt2, idwt2, wavedec2, waverec2, ravel_coeffs, unravel_coeffs
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
-from scipy.fft import fft2, ifft2
+from scipy.fft import fft, ifft
 
 
 def SF_transpose_map(indices, m, n):
     m_tld = indices.size
-    sqt_n = int(n**0.5)
     S_conj = S_transpose(indices, m_tld, n)
-    return lambda x: np.sqrt(n/m) * ifft2((S_conj @ x.flat).reshape((sqt_n, sqt_n)), norm="ortho")
+    return lambda x: np.sqrt(n/m) * ifft((S_conj @ x.flat), norm="ortho")
 
 
 def wr_prob_vec(loc_co):
@@ -31,7 +29,6 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, int]:
     assert m < n
     sorted_co = np.sort(loc_co)
     J = n
-
     def Lsqrd(j, m, n, sorted_co):
         return m * np.sum(sorted_co[:j]**2) / (m - (n-j))
     for j in range(n, n-m-1, -1):
@@ -43,7 +40,7 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, int]:
 
 
 def SF_func(indices: NDArray, m, n):
-    return lambda x: np.sqrt(n/m) * fft2(x, norm="ortho").flat[indices]
+    return lambda x: np.sqrt(n/m) * fft(x, norm="ortho").flat[indices]
 
 
 def S_transpose(indices, m_tld, n):
@@ -73,7 +70,7 @@ def lasso_wr_Fourier(n, m, indices, b: np.ndarray, x: np.ndarray, lambda_, d=Non
     fits = np.zeros(max_iter)
     regs = np.zeros(max_iter)
     for ind in range(max_iter):
-        x_old[:, :] = x
+        x_old[:] = x
         residual = (b - SF(x))
         fits[ind] = np.linalg.norm(residual)**2
         regs[ind] = np.sum(np.abs(x))
@@ -92,7 +89,7 @@ def make_df():
     sqt_n = 400
     df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2, 8, integer=True), 'sigma': [0.0, 0.001, 0.01, 0.1, 10.0], 'lambda_': [
         0.01, 0.001, 0.0001], 'tol': 1e-5, 'img': ["phantom", "camera"], "sampling_type": ["wr", "Ber"], "adapted_sampling": True})
-    df = repeat(df, 1)
+    df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -147,6 +144,7 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
     # features = square_haar(dwt2(true_signal, "haar"))
     features, coeff_slices, coeff_shape = ravel_coeffs(
         wavedec2(true_signal, "haar", level=5))
+    n = features.size # Override n because the wavelet transform may change it slightly.
     # The sparse basis is fully incoherent with the Fourier basis in this experiment.
     data['loc_co'] = np.repeat(1/np.sqrt(n), n)
     np.random.seed(data['seed'])
@@ -178,8 +176,7 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
     noise = 1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)
     b = signal + noise
     emp_snr = np.linalg.norm(signal)/np.linalg.norm(noise)
-    x_hat, fits, regs = lasso_wr_Fourier(n, m, indices, b, np.zeros(
-        [sqt_n, sqt_n], dtype=np.float32), data['lambda_'], tol=data['tol'], d=d)
+    x_hat, fits, regs = lasso_wr_Fourier(n, m, indices, b, np.zeros_like(unit_features), data['lambda_'], tol=data['tol'], d=d)
     rre = np.linalg.norm(x_hat - unit_features)
     run_time = time()-start_time
     return_dict = {'rrep': rre, 'runtime_seconds': run_time, 'fits': fits,
@@ -201,9 +198,11 @@ def make_local_df():
     df.attrs.update({"global_seed": 0})
     return soft_astype_df(df, ExperimentTypes)
 
-# local_df = make_local_df()
+# local_df = make_df()
 # local_df['seed']
 # result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
+# result.to_pickle("./data/larger_12.pickle")
+
 # print(result['TRACEBACK'][0])
 # plt.imshow(result["recovered_signal"][0])
 # soft_astype_df(result, ExperimentTypes)
