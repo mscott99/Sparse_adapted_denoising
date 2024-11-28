@@ -8,16 +8,18 @@ import matplotlib.pyplot as plt
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df = pd.read_pickle("./data/mylarger.pickle")
+df = pd.read_pickle("./data/larger_12.pickle")
+df2 = pd.read_pickle("./data/local_larger_12.pickle")
+df2.columns
 
-df = df[df['ERROR'].isna()] # Had errors with m too large
-error_df = df[df['ERROR'].notna()]
+if 'ERROR' in df.columns:
+    print("There were errors")
+    df = df[df['ERROR'].isna()] # Had errors with m too large
+    error_df = df[df['ERROR'].notna()]
 
 df.columns
 
-df['tld_acc'] = df['m_tld']/df['m']
-plt.figure()
-sns.barplot(df['tld_acc'], width = 50)
+df['rrep']
 
 sns.relplot(df, kind = "line", x = "m", y = "rrep", col = "sampling_type", style = "lambda_", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
 plt.xscale("log")

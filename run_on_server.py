@@ -29,6 +29,7 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, int]:
     assert m < n
     sorted_co = np.sort(loc_co)
     J = n
+
     def Lsqrd(j, m, n, sorted_co):
         return m * np.sum(sorted_co[:j]**2) / (m - (n-j))
     for j in range(n, n-m-1, -1):
@@ -144,7 +145,8 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
     # features = square_haar(dwt2(true_signal, "haar"))
     features, coeff_slices, coeff_shape = ravel_coeffs(
         wavedec2(true_signal, "haar", level=5))
-    n = features.size # Override n because the wavelet transform may change it slightly.
+    # Override n because the wavelet transform may change it slightly.
+    n = features.size
     # The sparse basis is fully incoherent with the Fourier basis in this experiment.
     data['loc_co'] = np.repeat(1/np.sqrt(n), n)
     np.random.seed(data['seed'])
@@ -175,8 +177,12 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
     signal = SF(unit_features)
     noise = 1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)
     b = signal + noise
-    emp_snr = np.linalg.norm(signal)/np.linalg.norm(noise)
-    x_hat, fits, regs = lasso_wr_Fourier(n, m, indices, b, np.zeros_like(unit_features), data['lambda_'], tol=data['tol'], d=d)
+    if data['sigma'] == 0:
+        emp_snr = np.inf
+    else:
+        emp_snr = np.linalg.norm(signal)/np.linalg.norm(noise)
+    x_hat, fits, regs = lasso_wr_Fourier(n, m, indices, b, np.zeros_like(
+        unit_features), data['lambda_'], tol=data['tol'], d=d)
     rre = np.linalg.norm(x_hat - unit_features)
     run_time = time()-start_time
     return_dict = {'rrep': rre, 'runtime_seconds': run_time, 'fits': fits,
@@ -190,7 +196,7 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
 def make_local_df():
     sqt_n = 100
     np.random.seed(0)
-    df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.01, 'tol': 1e-5,
+    df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
                          "img": "camera", "sampling_type": ["wr", "Ber"], "adapted_sampling": [True, True, False], 'save_img': True})
     # df = repeat(df, 2)
     df['seed'] = [np.random.randint(1, 2**32 - 1) for _ in range(len(df))]
@@ -198,10 +204,10 @@ def make_local_df():
     df.attrs.update({"global_seed": 0})
     return soft_astype_df(df, ExperimentTypes)
 
-# local_df = make_df()
+# local_df = make_local_df()
 # local_df['seed']
 # result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
-# result.to_pickle("./data/larger_12.pickle")
+# result.to_pickle("./data/local_larger_12.pickle")
 
 # print(result['TRACEBACK'][0])
 # plt.imshow(result["recovered_signal"][0])
