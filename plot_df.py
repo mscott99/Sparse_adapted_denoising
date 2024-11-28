@@ -8,7 +8,37 @@ import matplotlib.pyplot as plt
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df = pd.read_pickle("./data/sweep_fixed.pickle")
+df = pd.read_pickle("./data/larger_8.pickle")
+
+df = df[df['TRACEBACK'].isna()] # Had errors with m too large
+error_df = df[df['TRACEBACK'].notna()]
+
+df.columns
+
+df['tld_acc'] = df['m_tld']/df['m']
+
+df.iloc[1]
+
+plt.figure()
+sns.barplot(df['tld_acc'], width = 50)
+
+sns.relplot(df, kind = "line", x = "m", y = "rrep", col = "sampling_type", style = "lambda_", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
+plt.xscale("log")
+plt.yscale("log")
+
+400**2
+
+len(df)
+
+indices= [1,2,3,4]
+np.max(np.unique(indices, return_counts=True)[1])
+
+np.max([])
+
+missing['m'].unique()
+
+len(missing)
+
 assert isinstance(df, pd.DataFrame)
 
 df.columns
@@ -19,14 +49,18 @@ df['sqt_n'][0]**2
 np.max(df["runtime_seconds"])/60
 # 24 seconds
 
+df['sampling_type'].unique()
+
 df['rel_m'] = df['m']/df['sqt_n']**2
+
+df.columns
 
 df['rre']
 
-df['runtime_seconds'].mean()*6/60 # estimate of total runtime for 6 rows per core.
+df['runtime_seconds'].mean()*100/60 # estimate of total runtime for 6 rows per core. 
 
 plt.figure()
-sns.lineplot(df, x="m", y="rre", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
+sns.lineplot(df, x="m", y="rrep", hue="sigma", style="img", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
 plt.xscale("log")
 plt.yscale("log")
 
