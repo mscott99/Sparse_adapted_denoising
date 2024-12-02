@@ -1,5 +1,5 @@
 from scipy import sparse
-from scipy.fft import fft, ifft, ifft2
+from scipy.fft import fft, fft2, ifft, ifft2
 import numpy as np
 from numpy.typing import NDArray
 from typing import Tuple

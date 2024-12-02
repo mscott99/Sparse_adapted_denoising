@@ -14,8 +14,7 @@ from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_arr
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
 from scipy.fft import fftshift, fft2
 
-from .sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
-
+from sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
 
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
     points = [(0, 0)]
@@ -215,27 +214,27 @@ def make_local_df():
         df.attrs.update({"global_seed": 0, "level":4})
         return soft_astype_df(df, ExperimentTypes)
 
-local_df = make_local_df()
-local_df['seed']
-
-result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
-
-plt.imshow(result['recovered_signal'][0])
-
-plt.imshow(result['m_tld'])
-
-result['fits']
-
-plt.yscale("log")
-
-plt.figure()
-plt.plot(range(len(result['fits'][0])),result['fits'][0])
-plt.plot(range(len(result['fits'][0])),result['regs'][0])
-
-np.max(result.regs[0])
-
-result['regs'][0][0]
-result['fits'][0][0]
+# local_df = make_local_df()
+# local_df['seed']
+#
+# result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
+#
+# plt.imshow(result['recovered_signal'][0])
+#
+# plt.imshow(result['m_tld'])
+#
+# result['fits']
+#
+# plt.yscale("log")
+#
+# plt.figure()
+# plt.plot(range(len(result['fits'][0])),result['fits'][0])
+# plt.plot(range(len(result['fits'][0])),result['regs'][0])
+#
+# np.max(result.regs[0])
+#
+# result['regs'][0][0]
+# result['fits'][0][0]
 
 
 # print(result['TRACEBACK'][0])
