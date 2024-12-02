@@ -8,9 +8,13 @@ import matplotlib.pyplot as plt
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df = pd.read_pickle("./data/larger_12.pickle")
-df2 = pd.read_pickle("./data/local_larger_12.pickle")
-df2.columns
+df = pd.read_pickle("./data/keep/uniform_sparse_cs_Nov_2024.pickle")
+
+df['runtime_seconds'].mean()
+
+# df2 = pd.read_pickle("./data/local_larger_12.pickle")
+
+# df2.columns
 
 if 'ERROR' in df.columns:
     print("There were errors")
@@ -21,7 +25,7 @@ df.columns
 
 df['rrep']
 
-sns.relplot(df, kind = "line", x = "m", y = "rrep", col = "sampling_type", style = "lambda_", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
+sns.relplot(df, kind = "line", x = "m", y = "rrep", row = "sampling_type", style = "lambda_", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
 plt.xscale("log")
 plt.yscale("log")
 
