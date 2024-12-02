@@ -14,7 +14,7 @@ from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_arr
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
 from scipy.fft import fftshift, fft2
 
-from sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
+from .sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
 
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
     points = [(0, 0)]

@@ -14,7 +14,7 @@ from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_arr
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
 from scipy.fft import fftshift, fft2
 
-from .sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
+from src.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
 
 def test_uneven_recov():
     ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
@@ -33,3 +33,6 @@ def test_uneven_recov():
     local_df['seed']
 
     result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
+
+def test_import():
+    from src import make_df, experiment
