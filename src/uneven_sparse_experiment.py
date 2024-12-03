@@ -62,10 +62,11 @@ def Haar_local_coherence(sqt_n: int, level: int):
 def lasso_Fourier_haar_basis(n: int, m: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_: float, wavelet="haar", level=5, d=None, max_iter=1000, tol=1e-5):
     assert len(indices) > 0
     # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
-    L = 2 * np.max(np.unique(indices, return_counts=True)[1]) * n/m
     if d is None:
         d = np.ones(n)
     d_tld = d[indices]
+    L = 2 * np.max(np.unique(indices, return_counts=True)[1]) * n/m* np.max(d_tld)**2
+    # To go fast, I would need to check the coherence at each iterate, to increase step size
     haar_x, slices = coeffs_to_array(wavedec2(x, wavelet, level=level))
 
     def wavelet_transform(y: np.ndarray) -> np.ndarray:
@@ -81,11 +82,11 @@ def lasso_Fourier_haar_basis(n: int, m: int, indices: NDArray, b: np.ndarray, x:
     regs = np.zeros(max_iter)
     for ind in range(max_iter):
         old_wavelet[:] = haar_x
-        residual = b - SF(inverse_wavelet(haar_x))
+        residual = d_tld*(b - SF(inverse_wavelet(haar_x)))
         fits[ind] = np.linalg.norm(residual)**2
         regs[ind] = np.sum(np.abs(haar_x))
         gradient = -2 * \
-            wavelet_transform(np.real(SF_transpose(d_tld**2*residual)))
+            wavelet_transform(np.real(SF_transpose(d_tld*residual)))
         haar_x = soft_threshold(haar_x - gradient / L, lambda_ / L)
         if np.linalg.norm(haar_x - old_wavelet) < tol:
             break

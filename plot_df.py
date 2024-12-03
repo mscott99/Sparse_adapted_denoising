@@ -2,30 +2,44 @@ from matplotlib.colors import LogNorm
 import seaborn as sns
 import numpy as np
 import pandas as pd
-from utils import repeat
+from utils import repeat, soft_astype_df
 import matplotlib.pyplot as plt
+
+from src.uneven_sparse_experiment import ExperimentTypes
 
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df = pd.read_pickle("./data/keep/uniform_sparse_cs_Nov_2024.pickle")
+df= pd.read_pickle("./data/uneven_17.pickle")
+
+assert isinstance(df, pd.DataFrame) 
+soft_astype_df(df, ExperimentTypes)
+
+df.dtypes
+
+print(df['ERROR'][0])
+
 
 df['runtime_seconds'].mean()
-
 # df2 = pd.read_pickle("./data/local_larger_12.pickle")
 
 # df2.columns
 
-if 'ERROR' in df.columns:
+if pd.notna(df['ERROR']).any():
     print("There were errors")
     df = df[df['ERROR'].isna()] # Had errors with m too large
     error_df = df[df['ERROR'].notna()]
 
 df.columns
 
-df['rrep']
+missing_rrep=df[df['rrep'].isna()]
+with_rrep=df[df['rrep'].notna()]
 
-sns.relplot(df, kind = "line", x = "m", y = "rrep", row = "sampling_type", style = "lambda_", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
+(missing_rrep["adapted_sampling"]==True).any()
+# Adapted sampling diverges
+
+# wr Diverges
+sns.relplot(with_rrep[with_rrep['sampling_type']=="Ber"], kind = "line", x = "m", y = "rrep", col="adapted_sampling", style = "lambda_", hue="sigma", hue_norm=LogNorm(vmin=1e-4, clip=True), palette="plasma", errorbar="se")
 plt.xscale("log")
 plt.yscale("log")
 
@@ -35,7 +49,6 @@ np.max(np.unique(indices, return_counts=True)[1])
 np.max([])
 
 missing['m'].unique()
-
 len(missing)
 
 assert isinstance(df, pd.DataFrame)
