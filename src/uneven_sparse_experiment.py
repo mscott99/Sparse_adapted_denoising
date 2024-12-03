@@ -16,6 +16,7 @@ from scipy.fft import fftshift, fft2
 
 from .sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
 
+
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
     points = [(0, 0)]
     for i in range(level):
@@ -58,7 +59,7 @@ def Haar_local_coherence(sqt_n: int, level: int):
 # reconstruct
 # np.abs(fft2(reconstruct))
 
-def lasso_Fourier_haar_basis(n:int, m:int, indices:NDArray, b:np.ndarray, x: np.ndarray, lambda_:float, wavelet="haar", level=5, d=None, max_iter=1000, tol=1e-5):
+def lasso_Fourier_haar_basis(n: int, m: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_: float, wavelet="haar", level=5, d=None, max_iter=1000, tol=1e-5):
     assert len(indices) > 0
     # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
     L = 2 * np.max(np.unique(indices, return_counts=True)[1]) * n/m
@@ -66,9 +67,11 @@ def lasso_Fourier_haar_basis(n:int, m:int, indices:NDArray, b:np.ndarray, x: np.
         d = np.ones(n)
     d_tld = d[indices]
     haar_x, slices = coeffs_to_array(wavedec2(x, wavelet, level=level))
-    def wavelet_transform(y:np.ndarray)->np.ndarray:
+
+    def wavelet_transform(y: np.ndarray) -> np.ndarray:
         return coeffs_to_array(wavedec2(y, wavelet, level=level))[0]
-    def inverse_wavelet(w:np.ndarray)-> np.ndarray:
+
+    def inverse_wavelet(w: np.ndarray) -> np.ndarray:
         return waverec2(array_to_coeffs(
             w, slices, output_format="wavedec2"), wavelet)
     old_wavelet = np.zeros_like(haar_x)
@@ -81,7 +84,8 @@ def lasso_Fourier_haar_basis(n:int, m:int, indices:NDArray, b:np.ndarray, x: np.
         residual = b - SF(inverse_wavelet(haar_x))
         fits[ind] = np.linalg.norm(residual)**2
         regs[ind] = np.sum(np.abs(haar_x))
-        gradient = -2*wavelet_transform(np.real(SF_transpose(d_tld**2*residual)))
+        gradient = -2 * \
+            wavelet_transform(np.real(SF_transpose(d_tld**2*residual)))
         haar_x = soft_threshold(haar_x - gradient / L, lambda_ / L)
         if np.linalg.norm(haar_x - old_wavelet) < tol:
             break
@@ -89,7 +93,7 @@ def lasso_Fourier_haar_basis(n:int, m:int, indices:NDArray, b:np.ndarray, x: np.
 
 
 ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
-                   "tol": float, "img": pd.CategoricalDtype(["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float}
+                   "tol": float, "level": int, "img": pd.CategoricalDtype(["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float}
 
 
 def make_df():
@@ -103,7 +107,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {"label": "fixed", "global_seed": global_seed, "save_img": False, "save_sampling":True})
+        {"label": "fixed", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
@@ -153,7 +157,7 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
     features = true_signal
     # features = square_haar(dwt2(true_signal, "haar"))
     # features, coeff_slices, coeff_shape = ravel_coeffs(
-        # wavedec2(true_signal, "haar", level=5))
+    # wavedec2(true_signal, "haar", level=5))
     # Override n because the wavelet transform may change it slightly.
     n = features.size
     # The sparse basis is fully incoherent with the Fourier basis in this experiment.
@@ -204,15 +208,15 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
 
 
 def make_local_df():
-        sqt_n = 128
-        np.random.seed(0)
-        df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
-                             "img": "camera", "sampling_type": ["wr", "Ber"], "adapted_sampling": True, 'save_img': True})
-        # df = repeat(df, 2)
-        df['seed'] = [np.random.randint(1, 2**32 - 1) for _ in range(len(df))]
-        add_standard_attributes(df)
-        df.attrs.update({"global_seed": 0, "level":4})
-        return soft_astype_df(df, ExperimentTypes)
+    sqt_n = 128
+    np.random.seed(0)
+    df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
+                         "img": "camera", "sampling_type": ["wr", "Ber"], "adapted_sampling": True, 'save_img': True})
+    # df = repeat(df, 2)
+    df['seed'] = [np.random.randint(1, 2**32 - 1) for _ in range(len(df))]
+    add_standard_attributes(df)
+    df.attrs.update({"global_seed": 0, "level": 4})
+    return soft_astype_df(df, ExperimentTypes)
 
 # local_df = make_local_df()
 # local_df['seed']
