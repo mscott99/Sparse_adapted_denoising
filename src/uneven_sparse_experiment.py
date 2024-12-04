@@ -68,10 +68,8 @@ def lasso_Fourier_haar_basis(n: int, m: int, indices: NDArray, b: np.ndarray, x:
     L = 2 * np.max(np.unique(indices, return_counts=True)[1]) * n/m* np.max(d_tld)**2
     # To go fast, I would need to check the coherence at each iterate, to increase step size
     haar_x, slices = coeffs_to_array(wavedec2(x, wavelet, level=level))
-
     def wavelet_transform(y: np.ndarray) -> np.ndarray:
         return coeffs_to_array(wavedec2(y, wavelet, level=level))[0]
-
     def inverse_wavelet(w: np.ndarray) -> np.ndarray:
         return waverec2(array_to_coeffs(
             w, slices, output_format="wavedec2"), wavelet)
@@ -133,7 +131,7 @@ class ExperimentData(TypedDict):
     datetime: NotRequired[datetime.datetime]
     emp_snr: NotRequired[np.float32]
     commit: NotRequired[str]
-    rrep: NotRequired[float]
+    re: NotRequired[float]
     runtime_seconds: NotRequired[int]
     fits: NotRequired[np.ndarray]
     regs: NotRequired[np.ndarray]
@@ -155,14 +153,8 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
             camera().astype(np.float32), (sqt_n, sqt_n))
     else:
         raise NotImplemented()
-    features = true_signal
-    # features = square_haar(dwt2(true_signal, "haar"))
-    # features, coeff_slices, coeff_shape = ravel_coeffs(
-    # wavedec2(true_signal, "haar", level=5))
     # Override n because the wavelet transform may change it slightly.
-    n = features.size
-    # The sparse basis is fully incoherent with the Fourier basis in this experiment.
-    # data['loc_co'] = np.repeat(1/np.sqrt(n), n)
+    n = true_signal.size
     loc_co = Haar_local_coherence(sqt_n, data['level'])
     np.random.seed(data['seed'])
     d = None
@@ -178,7 +170,8 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
         assert m <= n
         if data['adapted_sampling']:
             weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
-            d = np.sqrt(m/(n*weights))
+            d = np.zeros_like(weights)
+            d[weights>0] = np.sqrt(m/(n*weights[weights>0]))
         else:
             weights = m/n
         indices = np.where(np.random.rand(n) < weights)[0]
@@ -186,8 +179,8 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
         raise NotImplementedError()
     SF = SF2_func(indices, m, n)
     m_tld = indices.size
-    norm_const = np.linalg.norm(features)
-    unit_features = features/norm_const
+    norm_const = np.linalg.norm(true_signal)
+    unit_features = true_signal/norm_const
     signal = SF(unit_features)
     noise = 1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)
     b = signal + noise
@@ -197,9 +190,9 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
         emp_snr = np.linalg.norm(signal)/np.linalg.norm(noise)
     x_hat, fits, regs = lasso_Fourier_haar_basis(n, m, indices, b, np.zeros_like(
         unit_features), data['lambda_'], tol=data['tol'], d=d)
-    rre = np.linalg.norm(x_hat - unit_features)
+    re = np.linalg.norm(x_hat - unit_features)
     run_time = time()-start_time
-    return_dict = {'rrep': rre, 'runtime_seconds': run_time, 'fits': fits,
+    return_dict = {'re': re, 'runtime_seconds': run_time, 'fits': fits,
                    'regs': regs, 'indices': indices, 'experiment_fn_label': "fully_sparse_exp", "m_tld": m_tld, 'emp_snr': emp_snr}
     if data['save_img']:
         return_dict['recovered_signal'] = x_hat * norm_const
@@ -209,23 +202,37 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
 
 
 def make_local_df():
-    sqt_n = 128
-    np.random.seed(0)
-    df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
-                         "img": "camera", "sampling_type": ["wr", "Ber"], "adapted_sampling": True, 'save_img': True})
-    # df = repeat(df, 2)
-    df['seed'] = [np.random.randint(1, 2**32 - 1) for _ in range(len(df))]
+    sqt_n = 400
+    df = allcombinations({'sqt_n': sqt_n, 'm': 40000, 'sigma': 0, 'lambda_':  0.0001, 'tol': 1e-6, 'img': ["phantom", "camera"], "sampling_type":"Ber", "adapted_sampling": True})
+    df = repeat(df, 1)
+    df['img'] = df['img'].astype('category')
+    global_seed = 1234
+    np.random.seed(global_seed)
+    df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
-    df.attrs.update({"global_seed": 0, "level": 4})
-    return soft_astype_df(df, ExperimentTypes)
+    df.attrs.update(
+        {"label": "fixed", "global_seed": global_seed, "save_img": True, "level": 5, "save_sampling": True})
+    df = soft_astype_df(df, ExperimentTypes)
+    return df
 
 # local_df = make_local_df()
-# local_df['seed']
-#
+
 # result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
-#
-# plt.imshow(result['recovered_signal'][0])
-#
+# plt.figure()
+# plt.heatmap(Haar_local_coherence(400, 5), norm=LogNorm())
+# sns.heatmap(Haar_local_coherence(400, 5), norm=LogNorm())
+
+# result['re'][0]
+
+# loc_co = Haar_local_coherence(400, 5)
+
+# non_zero_mask = loc_co > 0
+# pos_co = loc_co[non_zero_mask]
+# n = pos_co.size
+# loc_co.size
+
+# plt.imshow(result['recovered_signal'][1])
+
 # plt.imshow(result['m_tld'])
 #
 # result['fits']

@@ -27,10 +27,11 @@ def wr_prob_vec(loc_co):
 
 
 def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
-    assert (loc_co > 0).all()
-    n = loc_co.size
-    assert m < n
-    sorted_co = np.sort(loc_co.flat)
+    non_zero_mask = loc_co > 0
+    pos_co = loc_co[non_zero_mask]
+    n = pos_co.size
+    assert m < n, "Cannot sample enough measurements given entries with zero coherences cannot be sampled"
+    sorted_co = np.sort(pos_co.flat)
     J = n
     def Lsqrd(j, m, n, sorted_co):
         return m * np.sum(sorted_co[:j]**2) / (m - (n-j))
@@ -40,7 +41,6 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float
             break
     Lsqr = Lsqrd(J, m, n, sorted_co)
     return np.clip(m * loc_co**2 / Lsqr, 0, 1), J, Lsqr
-
 
 def SF_func(indices: NDArray, m, n):
     return lambda x: np.sqrt(n/m) * fft(x, norm="ortho")[indices]
