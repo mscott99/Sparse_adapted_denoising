@@ -13,9 +13,21 @@ from skimage import transform
 from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_array, array_to_coeffs
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
 from scipy.fft import fftshift, fft2
+from numpy.linalg import norm
+import spgl1
+
+from scipy.sparse.linalg import LinearOperator
 
 from .sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
 
+
+class WaveletPartialFourier(LinearOperator):
+    def __init__(self, idx, n, matmul, rmatmul):
+        self._matvec = matmul
+        self._rmatvec = rmatmul
+        self.idx = idx
+        self.shape = (len(idx), n)
+        self.dtype = np.complex64
 
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
     points = [(0, 0)]
@@ -59,17 +71,20 @@ def Haar_local_coherence(sqt_n: int, level: int):
 # reconstruct
 # np.abs(fft2(reconstruct))
 
-def lasso_Fourier_haar_basis(n: int, m: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_: float, wavelet="haar", level=5, d=None, max_iter=1000, tol=1e-5):
+def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_=0.0, m: int = 0, wavelet="haar", level=5, d=None, max_iter=10000, tol=1e-6, **kwargs):
     assert len(indices) > 0
     # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
     if d is None:
         d = np.ones(n)
     d_tld = d[indices]
-    L = 2 * np.max(np.unique(indices, return_counts=True)[1]) * n/m* np.max(d_tld)**2
+    L = 2 * np.max(np.unique(indices, return_counts=True)
+                   [1]*d_tld**2) * n/m  # Assume
     # To go fast, I would need to check the coherence at each iterate, to increase step size
     haar_x, slices = coeffs_to_array(wavedec2(x, wavelet, level=level))
+
     def wavelet_transform(y: np.ndarray) -> np.ndarray:
         return coeffs_to_array(wavedec2(y, wavelet, level=level))[0]
+
     def inverse_wavelet(w: np.ndarray) -> np.ndarray:
         return waverec2(array_to_coeffs(
             w, slices, output_format="wavedec2"), wavelet)
@@ -78,17 +93,19 @@ def lasso_Fourier_haar_basis(n: int, m: int, indices: NDArray, b: np.ndarray, x:
     SF_transpose = SF2_transpose_map(indices, m, n, x.shape)
     fits = np.zeros(max_iter)
     regs = np.zeros(max_iter)
+    tols = np.zeros(max_iter)
     for ind in range(max_iter):
-        old_wavelet[:] = haar_x
+        old_wavelet = np.copy(haar_x)
         residual = d_tld*(b - SF(inverse_wavelet(haar_x)))
         fits[ind] = np.linalg.norm(residual)**2
         regs[ind] = np.sum(np.abs(haar_x))
         gradient = -2 * \
             wavelet_transform(np.real(SF_transpose(d_tld*residual)))
         haar_x = soft_threshold(haar_x - gradient / L, lambda_ / L)
+        tols[ind] = np.linalg.norm(haar_x - old_wavelet)
         if np.linalg.norm(haar_x - old_wavelet) < tol:
             break
-    return inverse_wavelet(haar_x), fits, regs
+    return inverse_wavelet(haar_x), fits, regs, tols
 
 
 ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
@@ -97,9 +114,9 @@ ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda
 
 def make_df():
     sqt_n = 400
-    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2, 8, integer=True), 'sigma': [0, 0.01, 0.1, 1.0], 'lambda_': [
-        0.01, 0.001, 0.0001], 'tol': 1e-6, 'img': ["phantom", "camera"], "sampling_type": ["wr", "Ber"], "adapted_sampling": [True, False]})
-    df = repeat(df, 3)
+    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2, 8, integer=True), 'sigma': [0, 0.1, 10.0], 'lambda_': [
+        0.01, 0.0001], 'img': ["phantom", "camera"], "sampling_type": ["wr", "Ber"], "adapted_sampling": [True, False]})
+    df = repeat(df, 1)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -139,7 +156,7 @@ class ExperimentData(TypedDict):
     experiment_fn_label: NotRequired[str]
 
 
-def experiment(data: ExperimentData) -> dict[str, Any]:
+def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
     sqt_n = int(data['sqt_n'])
@@ -152,7 +169,7 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
         true_signal = transform.resize(
             camera().astype(np.float32), (sqt_n, sqt_n))
     else:
-        raise NotImplemented()
+        raise NotImplementedError()
     # Override n because the wavelet transform may change it slightly.
     n = true_signal.size
     loc_co = Haar_local_coherence(sqt_n, data['level'])
@@ -163,7 +180,8 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
             p = (loc_co**2/np.sum(loc_co**2)).ravel()
             indices = np.random.choice(
                 n, m, replace=True, p=p)
-            d = 1/np.sqrt(n * p)
+            d = np.zeros_like(p)
+            d[p > 0] = 1/np.sqrt(n * p[p > 0])
         else:
             indices = np.random.choice(n, m, replace=True)
     elif data['sampling_type'] == "Ber":
@@ -171,60 +189,78 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
         if data['adapted_sampling']:
             weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
             d = np.zeros_like(weights)
-            d[weights>0] = np.sqrt(m/(n*weights[weights>0]))
+            d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
         else:
             weights = m/n
         indices = np.where(np.random.rand(n) < weights)[0]
     else:
         raise NotImplementedError()
+
+    # true_signal = np.random.rand(128**2).reshape((128,128))
+    sample_wavelet, slices = coeffs_to_array(wavedec2(true_signal, "haar", level=data['level']))
+    theshape = sample_wavelet.shape
+    # level=5
+    # result.shape , slices = coeffs_to_array(wavedec2(true_signal, "haar", level=level))
+    def wavelet_transform(y) -> np.ndarray: #2d to 1d
+        return coeffs_to_array(wavedec2(y, "haar", level=data['level']))[0].ravel()
+
+    def inverse_wavelet(w: np.ndarray) -> np.ndarray: # 1d to 2d
+        return waverec2(array_to_coeffs(
+            w.reshape(theshape), slices, output_format="wavedec2"), "haar")
+    
     SF = SF2_func(indices, m, n)
+    SF_transpose = SF2_transpose_map(indices, m, n, true_signal.shape)
+    A = WaveletPartialFourier(indices, n, lambda x: SF(inverse_wavelet(x)), lambda x: wavelet_transform(SF_transpose(x)))
     m_tld = indices.size
-    norm_const = np.linalg.norm(true_signal)
-    unit_features = true_signal/norm_const
-    signal = SF(unit_features)
+    signal = SF(true_signal)
     noise = 1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)
     b = signal + noise
     if data['sigma'] == 0:
         emp_snr = np.inf
     else:
         emp_snr = np.linalg.norm(signal)/np.linalg.norm(noise)
-    x_hat, fits, regs = lasso_Fourier_haar_basis(n, m, indices, b, np.zeros_like(
-        unit_features), data['lambda_'], tol=data['tol'], d=d)
-    re = np.linalg.norm(x_hat - unit_features)
+    # x_hat, fits, regs, tols = lasso_Fourier_haar_basis(n, indices, b, np.zeros_like(
+        # true_signal), d=d, **data)
+    x_haar, resid, grad, info = spgl1.spg_bpdn(
+        A, b, 0.01, iter_lim=1000, verbosity=0)
+    x_haar = np.real(x_haar)
+    optim_info = {'resid': resid, 'grad':grad, 'info':info}
+    x_hat = inverse_wavelet(x_haar)
+    re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
-    return_dict = {'re': re, 'runtime_seconds': run_time, 'fits': fits,
-                   'regs': regs, 'indices': indices, 'experiment_fn_label': "fully_sparse_exp", "m_tld": m_tld, 'emp_snr': emp_snr}
-    if data['save_img']:
-        return_dict['recovered_signal'] = x_hat * norm_const
-    if data['save_sampling']:
+    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "fully_sparse_exp", "m_tld": m_tld, 'emp_snr': emp_snr, 'optim_info':optim_info}
+    if 'save_img' in data and data['save_img']:
+        return_dict['recovered_signal'] = x_hat
+    if 'save_sampling' in data and data['save_sampling']:
         return_dict['indices'] = indices
     return return_dict
 
-
-def make_local_df():
-    sqt_n = 400
-    df = allcombinations({'sqt_n': sqt_n, 'm': 40000, 'sigma': 0, 'lambda_':  0.0001, 'tol': 1e-6, 'img': ["phantom", "camera"], "sampling_type":"Ber", "adapted_sampling": True})
-    df = repeat(df, 1)
-    df['img'] = df['img'].astype('category')
-    global_seed = 1234
-    np.random.seed(global_seed)
-    df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-    add_standard_attributes(df)
-    df.attrs.update(
-        {"label": "fixed", "global_seed": global_seed, "save_img": True, "level": 5, "save_sampling": True})
-    df = soft_astype_df(df, ExperimentTypes)
-    return df
-
-# local_df = make_local_df()
-
-# result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
 # plt.figure()
 # plt.heatmap(Haar_local_coherence(400, 5), norm=LogNorm())
 # sns.heatmap(Haar_local_coherence(400, 5), norm=LogNorm())
 
-# result['re'][0]
+# def normalize(x):
+#     return x / np.linalg.norm(x)
+
+# np.linalg.norm(normalize(data['recovered_signal']) -
+#                normalize(data['debug']['true_signal']))
+
+# np.linalg.norm(data['recovered_signal'] - data['debug']
+#                ['true_signal']) / norm(data['debug']['true_signal'])
+
+# plt.figure()
+# plt.imshow(data["recovered_signal"])
+
+# plt.figure()
+# plt.imshow(data["debug"]["true_signal"])
+
+# np.linalg.norm(data["recovered_signal"])
+
+# np.linalg.norm(data["debug"]["true_signal"])
+
 
 # loc_co = Haar_local_coherence(400, 5)
+
 
 # non_zero_mask = loc_co > 0
 # pos_co = loc_co[non_zero_mask]
@@ -238,11 +274,7 @@ def make_local_df():
 # result['fits']
 #
 # plt.yscale("log")
-#
-# plt.figure()
-# plt.plot(range(len(result['fits'][0])),result['fits'][0])
-# plt.plot(range(len(result['fits'][0])),result['regs'][0])
-#
+
 # np.max(result.regs[0])
 #
 # result['regs'][0][0]
