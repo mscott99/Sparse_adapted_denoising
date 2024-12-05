@@ -196,9 +196,9 @@ def experiment(data: dict) -> dict[str, Any]:
     else:
         raise NotImplementedError()
 
-    # true_signal = np.random.rand(128**2).reshape((128,128))
     sample_wavelet, slices = coeffs_to_array(wavedec2(true_signal, "haar", level=data['level']))
     theshape = sample_wavelet.shape
+    # true_signal = np.random.rand(128**2).reshape((128,128))
     # level=5
     # result.shape , slices = coeffs_to_array(wavedec2(true_signal, "haar", level=level))
     def wavelet_transform(y) -> np.ndarray: #2d to 1d
@@ -210,7 +210,8 @@ def experiment(data: dict) -> dict[str, Any]:
     
     SF = SF2_func(indices, m, n)
     SF_transpose = SF2_transpose_map(indices, m, n, true_signal.shape)
-    A = WaveletPartialFourier(indices, n, lambda x: SF(inverse_wavelet(x)), lambda x: wavelet_transform(SF_transpose(x)))
+    
+    A = WaveletPartialFourier(indices, np.prod(theshape), lambda x: SF(inverse_wavelet(x)), lambda x: wavelet_transform(SF_transpose(x)))
     m_tld = indices.size
     signal = SF(true_signal)
     noise = 1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)
