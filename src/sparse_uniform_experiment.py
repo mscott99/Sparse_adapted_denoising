@@ -4,19 +4,16 @@ import pandas as pd
 from time import time
 import datetime
 import numpy as np
-from typing import TypedDict, NotRequired, Literal, Any, Tuple
+from typing import TypedDict, NotRequired, Literal, Any
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
-from scipy import sparse
-from pywt import dwt2, idwt2, wavedec2, waverec2, ravel_coeffs, unravel_coeffs
-from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
-from scipy.fft import fft, ifft
+from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs
+from utils import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df, df_vals, run_local_df_experiment
 
-from .sampling_recov_functions import SF_func, SF_transpose_map, soft_threshold,Bernoulli_prob_weights 
+from sampling_recov_functions import SF_func, SF_transpose_map, soft_threshold,Bernoulli_prob_weights 
 
 
-
-def lasso_wr_Fourier(n, m, indices, b: np.ndarray, x: np.ndarray, lambda_, d=None, max_iter=1000, tol=1e-5):
+def lasso_wr_Fourier(n, m, indices, b: np.ndarray, x: np.ndarray, lambda_, d=None, max_iter=100000, tol=1e-5):
     """LASSO solver using Iterative Soft Thresholding Algorithm (ISTA)
     If no resampling, set L to 2
     """
@@ -50,7 +47,7 @@ ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda
 def make_df():
     sqt_n = 400
     df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2, 8, integer=True), 'sigma': [0.0, 0.001, 0.01, 0.1, 10.0], 'lambda_': [
-        0.01, 0.001, 0.0001], 'tol': 1e-5, 'img': ["phantom", "camera"], "sampling_type": ["wr", "Ber"], "adapted_sampling": True})
+        1e-3, 1e-5, 1e-7], 'tol': 1e-10,"max_iter":1e6, 'img': ["phantom", "camera"], "sampling_type": "wr", "adapted_sampling": True})
     df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -58,7 +55,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {"label": "fixed", "global_seed": global_seed, "save_img": False})
+        {"label": "jan_2025_", "global_seed": global_seed, "save_img": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
@@ -157,17 +154,40 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
 def make_local_df():
     sqt_n = 100
     np.random.seed(0)
-    df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
-                         "img": "camera", "sampling_type": ["wr", "Ber"], "adapted_sampling": [True, True, False], 'save_img': True})
+    df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2*10), 'lambda_': 1e-5, 'sigma': 0.00, 'tol': 1e-10,"max_iter":1000000,
+                         "img": "camera", "sampling_type": "wr", "adapted_sampling": True, 'save_img': True})
+    repeat(df, 3)
     # df = repeat(df, 2)
     df['seed'] = [np.random.randint(1, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update({"global_seed": 0})
     return soft_astype_df(df, ExperimentTypes)
 
-# local_df = make_local_df()
-# local_df['seed']
-# result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
+local_df = make_local_df()
+local_df['seed']
+df_vals(local_df)
+
+result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
+
+result.loc[0].rrep
+
+df_vals(result)
+
+df_vals(local_df)
+plt.imshow(result.loc[0].recovered_signal)
+sqt_n = result.loc[0].sqt_n
+true_signal = transform.resize( camera().astype(np.float32), (sqt_n, sqt_n))
+norm_true = true_signal/np.linalg.norm(true_signal)
+recovered = result.loc[0].recovered_signal
+
+plt.imshow(result.loc[0].recovered_signal - true_signal)
+
+plt.imshow(transform.resize( camera().astype(np.float32), (sqt_n, sqt_n)))
+
+
+np.mean(recovered)
+np.mean(true_signal)
+
 # result.to_pickle("./data/local_larger_12.pickle")
 
 # print(result['TRACEBACK'][0])

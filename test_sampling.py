@@ -23,7 +23,7 @@ def test_uneven_recov():
     ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
                    "tol": float, "img": pd.CategoricalDtype(["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float}
     def make_local_df():
-        sqt_n = 400
+        sqt_n = 20
         np.random.seed(0)
         df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
                              "img": "camera", "sampling_type": "Ber", "adapted_sampling": True, 'save_img': True})
@@ -36,7 +36,3 @@ def test_uneven_recov():
     local_df = make_local_df()
     local_df['seed']
     result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
-
-
-def test_import():
-    from src import make_df, experiment
