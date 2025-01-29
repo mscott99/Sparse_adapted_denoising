@@ -114,9 +114,9 @@ ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda
 
 def make_df():
     sqt_n = 400
-    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2, 8, integer=True), 'sigma': [0, 0.1, 10.0], 'lambda_': [
-        0.01, 0.0001], 'img': ["phantom", "camera"], "sampling_type": ["wr", "Ber"], "adapted_sampling": [True, False]})
-    df = repeat(df, 1)
+    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2*4, 8, integer=True), 'sigma': [0, 0.1, 10.0], 'lambda_': [
+        1e-3, 1e-5, 1e-7], 'tol': 1e-10, 'max_iter': 1e6, 'img': ["phantom", "camera"], "sampling_type": "wr", "adapted_sampling": True})
+    df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)

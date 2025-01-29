@@ -10,7 +10,7 @@ from src.uneven_sparse_experiment import ExperimentTypes
 # df = pd.DataFrame({'a': [1,2,3]})
 # pd.to_pickle(df, "./data/test.pickle")
 
-df= pd.read_pickle("./data/uneven_19.pickle")
+df= pd.read_pickle("./data/jan_2025.pickle")
 
 assert isinstance(df, pd.DataFrame) 
 soft_astype_df(df, ExperimentTypes)
