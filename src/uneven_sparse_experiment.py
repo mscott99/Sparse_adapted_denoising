@@ -108,15 +108,44 @@ def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndar
     return inverse_wavelet(haar_x), fits, regs, tols
 
 
-ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
+ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
                    "tol": float, "level": int, "img": pd.CategoricalDtype(["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float}
+
+# Using the functions above, make a function that takes a 2d ndarray, transforms it,
+# and truncates its sparsity level in the Haar basis to a specified sparsity level.
+
+
+def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) -> np.ndarray:
+    """
+    Truncate an image to a specified sparsity level in the Haar wavelet basis.
+    
+    Args:
+        image: 2D input array
+        sparsity_level: Number of coefficients to keep
+        level: Wavelet decomposition level
+        wavelet: Wavelet type (default: 'haar')
+    
+    Returns:
+        Reconstructed image with specified sparsity level
+    """
+
+    # Transform to wavelet domain
+    coeffs = to_wavelet(image)
+    print(coeffs) 
+    # Get the indices of the largest coefficients
+    threshold_idx = np.argsort(np.abs(coeffs.ravel()))[-k:]
+    sparse_coeffs = np.zeros_like(coeffs)
+    sparse_coeffs.ravel()[threshold_idx] = coeffs.ravel()[threshold_idx]
+    print(sparse_coeffs) 
+    # Inverse transform
+    return from_wavelet(sparse_coeffs) 
 
 
 def make_df():
     sqt_n = 400
-    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2*4, 8, integer=True), 'sigma': [0, 0.1, 10.0], 'lambda_': [
-        1e-3, 1e-5, 1e-7], 'tol': 1e-10, 'max_iter': 1e6, 'img': ["phantom", "camera"], "sampling_type": "wr", "adapted_sampling": True})
-    df = repeat(df, 2)
+    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2*4, 8, integer=True), 'k':[int(sqt_n**2*4/10), int(sqt_n**2*4/2)], 'sigma': [0.0, 1.0, 10.0], 'lambda_': [
+        1e-2, 1e-5, 1e-9], 'tol': [1e-3, 1e-6, 1e-10], 'max_iter': 1e6, 'img': ["phantom", "camera"], "sampling_type": "wr", "adapted_sampling": True})
+    # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -131,6 +160,7 @@ def make_df():
 class ExperimentData(TypedDict):
     sqt_n: int
     m: int
+    k: int
     sigma: float
     lambda_: float
     tol: float
@@ -208,9 +238,9 @@ def experiment(data: dict) -> dict[str, Any]:
         return waverec2(array_to_coeffs(
             w.reshape(theshape), slices, output_format="wavedec2"), "haar")
     
+    true_signal = truncate_to_sparsity(true_signal, data['k'], wavelet_transform, inverse_wavelet)
     SF = SF2_func(indices, m, n)
     SF_transpose = SF2_transpose_map(indices, m, n, true_signal.shape)
-    
     A = WaveletPartialFourier(indices, np.prod(theshape), lambda x: SF(inverse_wavelet(x)), lambda x: wavelet_transform(SF_transpose(x)))
     m_tld = indices.size
     signal = SF(true_signal)
@@ -229,7 +259,7 @@ def experiment(data: dict) -> dict[str, Any]:
     x_hat = inverse_wavelet(x_haar)
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
-    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "fully_sparse_exp", "m_tld": m_tld, 'emp_snr': emp_snr, 'optim_info':optim_info}
+    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "uneven_on_exactly_sparse", "m_tld": m_tld, 'emp_snr': emp_snr, 'optim_info':optim_info}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
