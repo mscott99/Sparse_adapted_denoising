@@ -71,7 +71,7 @@ def Haar_local_coherence(sqt_n: int, level: int):
 # reconstruct
 # np.abs(fft2(reconstruct))
 
-def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_=0.0, m: int = 0, wavelet="haar", level=5, d=None, max_iter=10000, tol=1e-6, **kwargs):
+def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_:float, m: int = 0, wavelet="haar", level=5, d=None, max_iter=10000, tol=1e-6, **kwargs):
     assert len(indices) > 0
     # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
     if d is None:
@@ -131,20 +131,83 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
     # Transform to wavelet domain
     coeffs = to_wavelet(image)
-    print(coeffs) 
+    print(coeffs.size)
+    print(np.sum(coeffs> 1e-5)) 
+    print(np.count_nonzero(coeffs))
     # Get the indices of the largest coefficients
-    threshold_idx = np.argsort(np.abs(coeffs.ravel()))[-k:]
+    sorted_idx = np.argsort(np.abs(coeffs.ravel()))
+    threshold_idx= sorted_idx[-k:]
     sparse_coeffs = np.zeros_like(coeffs)
-    sparse_coeffs.ravel()[threshold_idx] = coeffs.ravel()[threshold_idx]
+    sparse_coeffs.ravel()[threshold_idx] = coeffs.flatten()[threshold_idx]
+    print(coeffs)
     print(sparse_coeffs) 
+    print(np.allclose(sparse_coeffs, coeffs))
     # Inverse transform
     return from_wavelet(sparse_coeffs) 
 
 
+# sqt_n=16
+# true_signal = transform.resize(
+#     camera().astype(np.float32), (sqt_n, sqt_n))
+#
+# level = 1
+# sample_wavelet, slices = coeffs_to_array(wavedec2(true_signal, "haar", level=level))
+# theshape = sample_wavelet.shape
+#
+# def wavelet_transform(y) -> np.ndarray: #2d to 1d
+#     return coeffs_to_array(wavedec2(y, "haar", level=level))[0].ravel()
+#
+# def inverse_wavelet(w: np.ndarray) -> np.ndarray: # 1d to 2d
+#     return waverec2(array_to_coeffs(
+#         w.reshape(theshape), slices, output_format="wavedec2"), "haar")
+#
+# truncate_level = 2
+# truncated = truncate_to_sparsity(true_signal, truncate_level, wavelet_transform, inverse_wavelet)
+#
+# other=truncate_to_sparsity(truncated, truncate_level, wavelet_transform, inverse_wavelet)
+#
+# plt.imshow(true_signal)
+#
+# plt.imshow(truncated)
+#
+#
+# plt.imshow(inverse_wavelet(wavelet_transform(true_signal)))
+#
+# insides = wavelet_transform(truncated)
+# np.count_nonzero(insides)
+#
+# (np.sum(np.abs(insides))/np.linalg.norm(insides))**2
+#
+# (truncated - inverse_wavelet(insides)).max()
+# plt.imshow(truncated - inverse_wavelet(insides))
+#
+# np.sum(insides > 1e-5)
+#
+# inverse_wavelet(insides)
+#
+#
+# len(insides) 
+#
+# np.allclose(wavelet_transform(inverse_wavelet(insides)), insides)
+#
+# tester = np.random.randn(32, 32)
+#
+# test_had=np.random.randn(*wavelet_transform(tester).shape)
+#
+# np.allclose(wavelet_transform(inverse_wavelet(test_had)), test_had)
+#
+#
+# np.allclose(inverse_wavelet(wavelet_transform(tester)), tester)
+#
+# np.sum(insides > 1e-4)
+# # It does not seem to be exact
+#
+#
+
 def make_df():
     sqt_n = 400
-    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2*4, 8, integer=True), 'k':[int(sqt_n**2*4/10), int(sqt_n**2*4/2)], 'sigma': [0.0, 1.0, 10.0], 'lambda_': [
-        1e-2, 1e-5, 1e-9], 'tol': [1e-3, 1e-6, 1e-10], 'max_iter': 1e6, 'img': ["phantom", "camera"], "sampling_type": "wr", "adapted_sampling": True})
+    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2*4, 8, integer=True), 'k':[2, int(sqt_n**2*4/20), int(sqt_n**2*4/3), sqt_n**2], 'sigma': [0.0, 1.0, 10.0], 'lambda_': [
+        100, 1, 1e-2], 'tol': 1e-6, 'max_iter': 1e6, 'img': ["phantom", "camera"], "sampling_type": "wr", "adapted_sampling": True})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
