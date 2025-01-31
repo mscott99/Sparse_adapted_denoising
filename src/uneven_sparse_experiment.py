@@ -108,8 +108,7 @@ def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndar
     return inverse_wavelet(haar_x), fits, regs, tols
 
 
-ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
-                   "tol": float, "level": int, "img": pd.CategoricalDtype(["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float}
+ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float, "level": int, "img": pd.CategoricalDtype(["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -316,7 +315,7 @@ def experiment(data: dict) -> dict[str, Any]:
     # x_hat, fits, regs, tols = lasso_Fourier_haar_basis(n, indices, b, np.zeros_like(
         # true_signal), d=d, **data)
     x_haar, resid, grad, info = spgl1.spg_bpdn(
-        A, b, 0.01, iter_lim=1000, verbosity=0)
+        A, b, data['lambda_'], iter_lim=data['max_iter'], verbosity=0)
     x_haar = np.real(x_haar)
     optim_info = {'resid': resid, 'grad':grad, 'info':info}
     x_hat = inverse_wavelet(x_haar)
