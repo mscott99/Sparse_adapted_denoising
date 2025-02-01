@@ -79,48 +79,30 @@ def truncation():
     # It seems like truncated coefficients are out of the range of the transformation.
     # Upon inverting, it meddles with things, but then stabilizes afterwards.
 
-sqt_n=32
-true_signal = transform.resize(
-    shepp_logan_phantom().astype(np.float32), (sqt_n, sqt_n))
+    sqt_n=16
+    true_signal = transform.resize(
+        camera().astype(np.float32), (sqt_n, sqt_n))
 
-sample_wavelet, slices = coeffs_to_array(wavedec2(true_signal, "haar", level=3))
-theshape = sample_wavelet.shape
+    k = 10
+    level = 1
+    sample_wavelet, slices = coeffs_to_array(wavedec2(true_signal, "haar", level=level))
+    theshape = sample_wavelet.shape
 
-def wavelet_transform(y) -> np.ndarray: #2d to 1d
-    return coeffs_to_array(wavedec2(y, "haar", level=3))[0].ravel()
+    sample_wavelet, slices = coeffs_to_array(pywt.wavedec2(true_signal, "haar", level = level))
 
-def inverse_wavelet(w: np.ndarray) -> np.ndarray: # 1d to 2d
-    return waverec2(array_to_coeffs(
-        w.reshape(theshape), slices, output_format="wavedec2"), "haar")
+    theshape = sample_wavelet.shape
 
-truncated = truncate_to_sparsity(true_signal, sqt_n**2, wavelet_transform, inverse_wavelet)
+    def wavelet_transform(y) -> np.ndarray: #2d to 1d
+        return coeffs_to_array(wavedec2(y, "haar", level=level))[0].ravel()
 
-plt.imshow(true_signal)
-plt.imshow(truncated)
+    def inverse_wavelet(w: np.ndarray) -> np.ndarray: # 1d to 2d
+        return waverec2(array_to_coeffs(
+            w.reshape(theshape), slices, output_format="wavedec2"), "haar")
 
-insides = wavelet_transform(truncated)
-(np.sum(np.abs(insides))/np.linalg.norm(insides))**2
-(truncated - inverse_wavelet(insides)).max()
-plt.imshow(truncated - inverse_wavelet(insides))
+    truncated = truncate_to_sparsity(true_signal, k, wavelet_transform, inverse_wavelet)
 
-np.sum(insides > 1e-5)
+    show_vec_mag(wavelet_transform(truncated))
+    # It works.
 
-inverse_wavelet(insides)
-
-
-len(insides) 
-
-np.allclose(wavelet_transform(inverse_wavelet(insides)), insides)
-
-tester = np.random.randn(32, 32)
-
-test_had=np.random.randn(*wavelet_transform(tester).shape)
-
-np.allclose(wavelet_transform(inverse_wavelet(test_had)), test_had)
-
-
-np.allclose(inverse_wavelet(wavelet_transform(tester)), tester)
-
-np.sum(insides > 1e-4)
-# It does not seem to be exact
-
+    plt.imshow(true_signal)
+    plt.imshow(truncated)
