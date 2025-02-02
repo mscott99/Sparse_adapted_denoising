@@ -147,8 +147,8 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'sqt_n': sqt_n, 'm': logspace(1e2, sqt_n**2*4, 8, integer=True), 'k':[10, 100, 1000, 10000], 'sigma': 0.0, 'lambda_': [
-        1e-2, 1e-4, 1e-6], 'max_iter': 1e6, 'img': ["phantom", "camera"], "sampling_type": "wr", "adapted_sampling": True})
+    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k':[100], 'sigma': [0.0,1e-2,1,1e2], 'lambda_': [
+        1e-4, 1e-6, 1e-8], 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -156,7 +156,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {"label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
+        {'sqt_n': sqt_n, "label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
