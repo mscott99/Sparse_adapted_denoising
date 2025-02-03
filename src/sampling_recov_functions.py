@@ -5,21 +5,21 @@ from numpy.typing import NDArray
 from typing import Tuple
 
 
-def S_transpose(indices, m_tld, n):
-    return sparse.coo_matrix(
+def S_transpose(indices, m, m_tld, n):
+    return np.sqrt(n/m) * sparse.coo_matrix(
         (np.ones(indices.shape[0]), (indices, range(m_tld))), shape=(n, m_tld))
 
 
 def SF_transpose_map(indices, m, n):
     m_tld = indices.size
-    S_conj = S_transpose(indices, m_tld, n)
-    return lambda x: np.sqrt(n/m) * ifft((S_conj @ x.flat), norm="ortho")
+    S_conj = S_transpose(indices, m, m_tld, n)
+    return lambda x: ifft((S_conj @ x.flat), norm="ortho")
 
 
 def SF2_transpose_map(indices, m, n, shape):
     m_tld = indices.size
-    S_conj = S_transpose(indices, m_tld, n)
-    return lambda x: np.sqrt(n/m) * ifft2((S_conj @ x.flat).reshape(shape), norm="ortho")
+    S_conj = S_transpose(indices, m, m_tld, n)
+    return lambda x: ifft2((S_conj @ x.flat).reshape(shape), norm="ortho")
 
 
 def wr_prob_vec(loc_co):
@@ -32,6 +32,7 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float
     assert m < n, "Cannot sample enough measurements given entries with zero coherences cannot be sampled"
     sorted_co = np.sort(pos_co.flat)
     J = n
+
     def Lsqrd(j, m, n, sorted_co):
         return m * np.sum(sorted_co[:j]**2) / (m - (n-j))
     for j in range(n, n-m-1, -1):
@@ -40,6 +41,7 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float
             break
     Lsqr = Lsqrd(J, m, n, sorted_co)
     return np.clip(m * loc_co**2 / Lsqr, 0, 1), J, Lsqr
+
 
 def SF_func(indices: NDArray, m, n):
     return lambda x: np.sqrt(n/m) * fft(x, norm="ortho")[indices]
