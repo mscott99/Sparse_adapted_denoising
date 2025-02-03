@@ -21,6 +21,10 @@ def SF2_transpose_map(indices, m, n, shape):
     S_conj = S_transpose(indices, m, m_tld, n)
     return lambda x: ifft2((S_conj @ x.flat).reshape(shape), norm="ortho")
 
+def SDF2_transpose_map(indices, m, n, shape, d):
+    m_tld = indices.size
+    S_conj = S_transpose(indices, m, m_tld, n)
+    return lambda x: ifft2((d*(S_conj @ x.flat)).reshape(shape), norm="ortho")
 
 def wr_prob_vec(loc_co):
     return loc_co**2/np.sum(loc_co**2)
@@ -50,6 +54,8 @@ def SF_func(indices: NDArray, m, n):
 def SF2_func(indices: NDArray, m, n):
     return lambda x: np.sqrt(n/m) * fft2(x, norm="ortho").flat[indices]
 
+def SDF2_func(indices, m, n, d):
+    return lambda x: np.sqrt(n/m) * (d*fft2(x, norm="ortho").flat)[indices]
 
 def soft_threshold(x, lambda_):
     """Soft thresholding operator"""
