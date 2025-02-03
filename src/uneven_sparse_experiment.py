@@ -133,7 +133,7 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k': [100], 'sigma': [
-        0.0, 1e-2, 1e1, 1e4, 1e7], 'lambda_': 1e-6, 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization":[True, False]})
+        0.0,1e-6, 1e-4, 1e-2, 1e-1, 1e0], 'lambda_': 1e-6, 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization":[True, False]})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -284,7 +284,8 @@ def experiment(data: dict) -> dict[str, Any]:
 starttime = time()
 returned_df = run_local_df_experiment(make_df(), experiment, ExperimentTypes)
 print(time()-starttime)
-returned_df.to_pickle("./mylastdf.pickle")
+
+returned_df.to_pickle("./datajan_2025_10/mylastdf.pickle")
 
 # plt.figure()
 # plt.heatmap(Haar_local_coherence(400, 5), norm=LogNorm())
