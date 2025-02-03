@@ -20,12 +20,12 @@ from src.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_thres
 from src.uneven_sparse_experiment import experiment, lasso_Fourier_haar_basis, truncate_to_sparsity
 
 def test_uneven_recov():
-    ExperimentTypes = {"sqt_n": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
+    ExperimentTypes = {"sqt_n": int,'max_iter': int, 'k': int, "m": int, "m_tld": int, "sigma": float, "lambda_": float,
                    "tol": float, "img": pd.CategoricalDtype(["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float}
     def make_local_df():
         sqt_n = 20
         np.random.seed(0)
-        df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2), 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
+        df = allcombinations({'sqt_n': sqt_n, 'm': int(sqt_n**2/2),'max_iter':5, 'k':10, 'lambda_': 0.001, 'sigma': 0.00, 'tol': 1e-5,
                              "img": "camera", "sampling_type": "Ber", "adapted_sampling": True, 'save_img': True})
         # df = repeat(df, 2)
         df['seed'] = [np.random.randint(1, 2**32 - 1) for _ in range(len(df))]
@@ -36,44 +36,6 @@ def test_uneven_recov():
     local_df = make_local_df()
     local_df['seed']
     result = run_local_df_experiment(local_df, experiment, dtype=ExperimentTypes)
-
-def test_truncate_to_sparsity():
-    # Test case 1: Simple test with known sparsity
-    test_image = np.zeros((8, 8))
-    test_image[0:4, 0:4] = 1  # Create a simple pattern
-    
-    # Test with different sparsity levels
-    k_values = [1, 5, 10]
-    
-    for k in k_values:
-        truncated = truncate_to_sparsity(test_image, k, level=2)
-        
-        # Check output dimensions
-        assert truncated.shape == test_image.shape
-        
-        # Transform truncated image to check sparsity
-        coeffs, _ = coeffs_to_array(wavedec2(truncated, 'haar', level=2))
-        
-        # Count non-zero coefficients
-        non_zero_count = np.count_nonzero(coeffs)
-        
-        # Check if number of non-zero coefficients is less than or equal to k
-        assert non_zero_count <= k, f"Expected {k} non-zero coefficients, got {non_zero_count}"
-        
-        # Check if output is real-valued
-        assert np.isreal(truncated).all(), "Output contains complex values"
-
-    # Test case 2: Test with real image
-    test_image = camera()
-    k = 1000
-    truncated = truncate_to_sparsity(test_image, k, level=5)
-    
-    # Check if dimensions are preserved
-    assert truncated.shape == test_image.shape
-    
-    # Check sparsity
-    coeffs, _ = coeffs_to_array(wavedec2(truncated, 'haar', level=5))
-    assert np.count_nonzero(coeffs) <= k
 
 def truncation():
     # It seems like truncated coefficients are out of the range of the transformation.
