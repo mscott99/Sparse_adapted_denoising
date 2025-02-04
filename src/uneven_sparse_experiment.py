@@ -7,7 +7,7 @@ import datetime
 import numpy as np
 from numpy.typing import NDArray
 import seaborn as sns
-from typing import TypedDict, NotRequired, Literal, Any, Tuple, List
+from typing import TypedDict, Literal, Any, Tuple, List
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
 from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_array, array_to_coeffs
@@ -19,7 +19,7 @@ import spgl1
 
 from scipy.sparse.linalg import LinearOperator
 
-from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights
+from src.sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights
 
 
 class WaveletPartialFourier(LinearOperator):
@@ -92,7 +92,7 @@ def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndar
     return inverse_wavelet(haar_x), fits, regs, tols
 
 
-ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_": float, "level": int, "img": pd.CategoricalDtype(
+ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
     ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditionned_optimization":bool}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
@@ -133,7 +133,7 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k': [100], 'sigma': [
-        0.0,1e-6, 1e-4, 1e-2, 1e-1, 1e0], 'lambda_': 1e-6, 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization":[True, False]})
+        0.0,1e-6, 1e-4, 1e-2, 1e-1, 1e0], 'lambda_coeff': 1e-6, 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization":[True, False]})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -146,39 +146,36 @@ def make_df():
     return df
 
 
-class ExperimentData(TypedDict):
-    sqt_n: int
-    m: int
-    k: int
-    sigma: float
-    lambda_: float
-    tol: float
-    img: str
-    seed: int
-    save_sampling: bool
-    sampling_type: Literal["wr", "Ber", "wor"]
-    adapted_sampling: bool
-    loc_co: NotRequired[np.ndarray]
-    global_seed: NotRequired[int]
-    save_img: bool
-    level: int
-    m_tld: NotRequired[int]
-    recovered_signal: NotRequired[NDArray[np.float32]]
-    datetime: NotRequired[datetime.datetime]
-    emp_snr: NotRequired[np.float32]
-    commit: NotRequired[str]
-    re: NotRequired[float]
-    runtime_seconds: NotRequired[int]
-    fits: NotRequired[np.ndarray]
-    regs: NotRequired[np.ndarray]
-    indices: NotRequired[list]
-    experiment_fn_label: NotRequired[str]
-    noise_mag: NotRequired[float]
-    signal_mag: NotRequired[float]
-    preconditionned_optimization: NotRequired[bool]
-
-def retrieve_true_signal(img_name):
-
+# class ExperimentData(TypedDict):
+#     sqt_n: int
+#     m: int
+#     k: int
+#     sigma: float
+#     lambda_coeff: float
+#     tol: float
+#     img: str
+#     seed: int
+#     save_sampling: bool
+#     sampling_type: Literal["wr", "Ber", "wor"]
+#     adapted_sampling: bool
+#     loc_co: NotRequired[np.ndarray]
+#     global_seed: NotRequired[int]
+#     save_img: bool
+#     level: int
+#     m_tld: NotRequired[int]
+#     recovered_signal: NotRequired[NDArray[np.float32]]
+#     datetime: NotRequired[datetime.datetime]
+#     emp_snr: NotRequired[np.float32]
+#     commit: NotRequired[str]
+#     re: NotRequired[float]
+#     runtime_seconds: NotRequired[int]
+#     fits: NotRequired[np.ndarray]
+#     regs: NotRequired[np.ndarray]
+#     indices: NotRequired[list]
+#     experiment_fn_label: NotRequired[str]
+#     noise_mag: NotRequired[float]
+#     signal_mag: NotRequired[float]
+#     preconditionned_optimization: NotRequired[bool]
 
 
 def experiment(data: dict) -> dict[str, Any]:
@@ -261,8 +258,9 @@ def experiment(data: dict) -> dict[str, Any]:
             inverse_wavelet(x)), lambda x: wavelet_transform(SF_transpose(x)))
 
     # Recover the signal
+    lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m)
     x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
-        A, b, data['lambda_'], iter_lim=data['max_iter'], verbosity=0)
+        A, b,lambda_ , iter_lim=data['max_iter'], verbosity=0)
     x_hat = inverse_wavelet(np.real(x_haar))
 
     # Return relevant data.
@@ -281,11 +279,11 @@ def experiment(data: dict) -> dict[str, Any]:
         return_dict['indices'] = indices
     return return_dict
 
-starttime = time()
-returned_df = run_local_df_experiment(make_df(), experiment, ExperimentTypes)
-print(time()-starttime)
-
-returned_df.to_pickle("./datajan_2025_10/mylastdf.pickle")
+# starttime = time()
+# returned_df = run_local_df_experiment(make_df(), experiment, ExperimentTypes)
+# print(time()-starttime)
+#
+# returned_df.to_pickle("./datajan_2025_10/mylastdf.pickle")
 
 # plt.figure()
 # plt.heatmap(Haar_local_coherence(400, 5), norm=LogNorm())
