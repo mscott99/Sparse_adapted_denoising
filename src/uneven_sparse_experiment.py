@@ -54,7 +54,6 @@ def Haar_local_coherence(sqt_n: int, level: int):
     return max_co
 
 
-
 def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_: float, m: int = 0, wavelet="haar", level=5, d=None, max_iter=10000, tol=1e-6, **kwargs):
     assert len(indices) > 0
     # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
@@ -93,7 +92,7 @@ def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndar
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditionned_optimization":bool}
+    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditionned_optimization": bool}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -133,7 +132,7 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k': [100], 'sigma': [
-        0.0,1e-6, 1e-4, 1e-2, 1e-1, 1e0], 'lambda_coeff': 1e-6, 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization":[True, False]})
+        0.0, 1e-4, 1e-2, 1e0], 'lambda_coeff': [1e-10, 1e-5, 1, 1e5, 1e10], 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization": [True, False]})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -194,10 +193,10 @@ def experiment(data: dict) -> dict[str, Any]:
     else:
         raise NotImplementedError()
 
-
     sample_wavelet, slices = coeffs_to_array(
         wavedec2(true_signal, "haar", level=data['level']))
     theshape = sample_wavelet.shape
+
     def wavelet_transform(y) -> np.ndarray:  # 2d to
         return coeffs_to_array(wavedec2(y, "haar", level=data['level']))[0].ravel()
 
@@ -214,7 +213,7 @@ def experiment(data: dict) -> dict[str, Any]:
     n = true_signal.size
     loc_co = Haar_local_coherence(sqt_n, data['level'])
 
-    d = np.array([]) 
+    d = np.array([])
     if data['sampling_type'] == "wr":
         if data['adapted_sampling'] == True:
             p = (loc_co**2/np.sum(loc_co**2)).ravel()
@@ -245,8 +244,9 @@ def experiment(data: dict) -> dict[str, Any]:
     b = signal + noise
 
     if data['preconditionned_optimization']:
-        if data['sampling_type']=='Ber':
-            raise NotImplementedError("Bernoulli sampling with preconditionned opt not implemented")
+        if data['sampling_type'] == 'Ber':
+            raise NotImplementedError(
+                "Bernoulli sampling with preconditionned opt not implemented")
         SDF = SDF2_func(indices, m, n, d)
         SDF_transpose = SDF2_transpose_map(indices, m, n, true_signal.shape, d)
         A = WaveletPartialFourier(indices, np.prod(theshape), lambda x: SDF(
@@ -258,9 +258,9 @@ def experiment(data: dict) -> dict[str, Any]:
             inverse_wavelet(x)), lambda x: wavelet_transform(SF_transpose(x)))
 
     # Recover the signal
-    lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m)
+    lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m) + 1e-8
     x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
-        A, b,lambda_ , iter_lim=data['max_iter'], verbosity=0)
+        A, b, lambda_, iter_lim=data['max_iter'], verbosity=0)
     x_hat = inverse_wavelet(np.real(x_haar))
 
     # Return relevant data.

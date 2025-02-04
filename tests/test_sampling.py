@@ -43,37 +43,37 @@ def test_experiment():
     experiment({**df.attrs, **df.loc[0]})  # test for runtime errors
 
 
-def truncation():
-    # It seems like truncated coefficients are out of the range of the transformation.
-    # Upon inverting, it meddles with things, but then stabilizes afterwards.
-
-    sqt_n = 16
-    true_signal = transform.resize(
-        camera().astype(np.float32), (sqt_n, sqt_n))
-
-    k = 10
-    level = 1
-    sample_wavelet, slices = coeffs_to_array(
-        wavedec2(true_signal, "haar", level=level))
-    theshape = sample_wavelet.shape
-
-    sample_wavelet, slices = coeffs_to_array(
-        pywt.wavedec2(true_signal, "haar", level=level))
-
-    theshape = sample_wavelet.shape
-
-    def wavelet_transform(y) -> np.ndarray:  # 2d to 1d
-        return coeffs_to_array(wavedec2(y, "haar", level=level))[0].ravel()
-
-    def inverse_wavelet(w: np.ndarray) -> np.ndarray:  # 1d to 2d
-        return waverec2(array_to_coeffs(
-            w.reshape(theshape), slices, output_format="wavedec2"), "haar")
-
-    truncated = truncate_to_sparsity(
-        true_signal, k, wavelet_transform, inverse_wavelet)
-
-    show_vec_mag(wavelet_transform(truncated))
-    # It works.
-
-    plt.imshow(true_signal)
-    plt.imshow(truncated)
+# def truncation():
+#     # It seems like truncated coefficients are out of the range of the transformation.
+#     # Upon inverting, it meddles with things, but then stabilizes afterwards.
+#
+#     sqt_n = 16
+#     true_signal = transform.resize(
+#         camera().astype(np.float32), (sqt_n, sqt_n))
+#
+#     k = 10
+#     level = 1
+#     sample_wavelet, slices = coeffs_to_array(
+#         wavedec2(true_signal, "haar", level=level))
+#     theshape = sample_wavelet.shape
+#
+#     sample_wavelet, slices = coeffs_to_array(
+#         pywt.wavedec2(true_signal, "haar", level=level))
+#
+#     theshape = sample_wavelet.shape
+#
+#     def wavelet_transform(y) -> np.ndarray:  # 2d to 1d
+#         return coeffs_to_array(wavedec2(y, "haar", level=level))[0].ravel()
+#
+#     def inverse_wavelet(w: np.ndarray) -> np.ndarray:  # 1d to 2d
+#         return waverec2(array_to_coeffs(
+#             w.reshape(theshape), slices, output_format="wavedec2"), "haar")
+#
+#     truncated = truncate_to_sparsity(
+#         true_signal, k, wavelet_transform, inverse_wavelet)
+#
+#     show_vec_mag(wavelet_transform(truncated))
+#     # It works.
+#
+#     plt.imshow(true_signal)
+#     plt.imshow(truncated)
