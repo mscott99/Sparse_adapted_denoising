@@ -2,8 +2,8 @@
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.linear_model import OrthogonalMatchingPursuit
 from time import time
-import datetime
 import numpy as np
 from numpy.typing import NDArray
 import seaborn as sns
@@ -11,10 +11,8 @@ from typing import TypedDict, Literal, Any, Tuple, List
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
 from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_array, array_to_coeffs
-import pywt
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df, show_vec_mag
-from scipy.fft import fftshift, fft2
-from numpy.linalg import norm
+from scipy.fft import fft2
 import spgl1
 
 from scipy.sparse.linalg import LinearOperator
@@ -29,6 +27,68 @@ class WaveletPartialFourier(LinearOperator):
         self.idx = idx
         self.shape = (len(idx), n)
         self.dtype = np.complex64
+
+
+def omp_with_linear_operator(A: LinearOperator, b: np.ndarray, k: int, tol: float = 1e-6, max_iter: int = 1000) -> np.ndarray:
+    """
+    Orthogonal Matching Pursuit (OMP) algorithm for sparse signal recovery.
+
+    Parameters:
+        A: scipy.sparse.linalg.LinearOperator, shape (m, n)
+            The measurement operator. Must implement `matvec` and `rmatvec`.
+        b: np.ndarray, shape (m,)
+            The measurement vector.
+        k: int
+            Sparsity level (number of non-zero coefficients).
+        tol: float
+            Tolerance for stopping criterion (default: 1e-6).
+        max_iter: int
+            Maximum number of iterations (default: 100).
+
+    Returns:
+        x: np.ndarray, shape (n,)
+            The recovered sparse signal.
+    """
+    m, n = A.shape
+    x = np.zeros(n)  # Initialize the solution
+    residual = b.copy()  # Initialize the residual
+    # Initialize the support set (indices of non-zero coefficients)
+    support = []
+    for _ in range(max_iter):
+        # Step 1: Find the index of the maximum correlation
+        correlations = A.rmatvec(residual)  # A^T @ residual
+        # Index of maximum correlation
+        new_index = np.argmax(np.abs(correlations))
+
+        # Step 2: Add the new index to the support set
+        if new_index not in support:
+            support.append(new_index)
+
+        # Step 3: Solve least squares problem on the current support
+        # Construct the submatrix A[:, support]
+        A_support = np.zeros((m, len(support)))
+        for i, idx in enumerate(support):
+            basis_vector = np.zeros(n)
+            basis_vector[idx] = 1
+            A_support[:, i] = A.matvec(basis_vector)
+
+        # Solve least squares: min ||A_support @ x_ls - b||_2
+        x_ls, _, _, _ = np.linalg.lstsq(A_support, b, rcond=None)
+
+        # Step 4: Update the residual
+        residual = b - A_support @ x_ls
+
+        # Step 5: Check stopping criterion
+        if np.linalg.norm(residual) < tol:
+            break
+
+        # Step 6: Stop if we've found enough non-zero coefficients
+        if len(support) >= k:
+            break
+
+    # Reconstruct the solution
+    x[support] = x_ls
+    return x
 
 
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
@@ -52,43 +112,6 @@ def Haar_local_coherence(sqt_n: int, level: int):
             img_to_reconstruct, slices, output_format="wavedec2"), "haar"), norm="ortho"))
         max_co = np.maximum(new_co, max_co)
     return max_co
-
-
-def lasso_Fourier_haar_basis(n: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_: float, m: int = 0, wavelet="haar", level=5, d=None, max_iter=10000, tol=1e-6, **kwargs):
-    assert len(indices) > 0
-    # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
-    if d is None:
-        d = np.ones(n)
-    d_tld = d[indices]
-    L = 2 * np.max(np.unique(indices, return_counts=True)
-                   [1]*d_tld**2) * n/m  # Assume
-    # To go fast, I would need to check the coherence at each iterate, to increase step size
-    haar_x, slices = coeffs_to_array(wavedec2(x, wavelet, level=level))
-
-    def wavelet_transform(y: np.ndarray) -> np.ndarray:
-        return coeffs_to_array(wavedec2(y, wavelet, level=level))[0]
-
-    def inverse_wavelet(w: np.ndarray) -> np.ndarray:
-        return waverec2(array_to_coeffs(
-            w, slices, output_format="wavedec2"), wavelet)
-    old_wavelet = np.zeros_like(haar_x)
-    SF = SF2_func(indices, m, n)
-    SF_transpose = SF2_transpose_map(indices, m, n, x.shape)
-    fits = np.zeros(max_iter)
-    regs = np.zeros(max_iter)
-    tols = np.zeros(max_iter)
-    for ind in range(max_iter):
-        old_wavelet = np.copy(haar_x)
-        residual = d_tld*(b - SF(inverse_wavelet(haar_x)))
-        fits[ind] = np.linalg.norm(residual)**2
-        regs[ind] = np.sum(np.abs(haar_x))
-        gradient = -2 * \
-            wavelet_transform(np.real(SF_transpose(d_tld*residual)))
-        haar_x = soft_threshold(haar_x - gradient / L, lambda_ / L)
-        tols[ind] = np.linalg.norm(haar_x - old_wavelet)
-        if np.linalg.norm(haar_x - old_wavelet) < tol:
-            break
-    return inverse_wavelet(haar_x), fits, regs, tols
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
@@ -132,7 +155,7 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k': [100], 'sigma': [
-        0.0, 1e-4, 1e-2, 1e0], 'lambda_coeff': [1e-10, 1e-5, 1, 1e5, 1e10], 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization": [True, False]})
+        0.0, 1e-4, 1e-2, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization": [True, False]})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -143,38 +166,6 @@ def make_df():
         {'sqt_n': sqt_n, "label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
     df = soft_astype_df(df, ExperimentTypes)
     return df
-
-
-# class ExperimentData(TypedDict):
-#     sqt_n: int
-#     m: int
-#     k: int
-#     sigma: float
-#     lambda_coeff: float
-#     tol: float
-#     img: str
-#     seed: int
-#     save_sampling: bool
-#     sampling_type: Literal["wr", "Ber", "wor"]
-#     adapted_sampling: bool
-#     loc_co: NotRequired[np.ndarray]
-#     global_seed: NotRequired[int]
-#     save_img: bool
-#     level: int
-#     m_tld: NotRequired[int]
-#     recovered_signal: NotRequired[NDArray[np.float32]]
-#     datetime: NotRequired[datetime.datetime]
-#     emp_snr: NotRequired[np.float32]
-#     commit: NotRequired[str]
-#     re: NotRequired[float]
-#     runtime_seconds: NotRequired[int]
-#     fits: NotRequired[np.ndarray]
-#     regs: NotRequired[np.ndarray]
-#     indices: NotRequired[list]
-#     experiment_fn_label: NotRequired[str]
-#     noise_mag: NotRequired[float]
-#     signal_mag: NotRequired[float]
-#     preconditionned_optimization: NotRequired[bool]
 
 
 def experiment(data: dict) -> dict[str, Any]:
@@ -258,9 +249,16 @@ def experiment(data: dict) -> dict[str, Any]:
             inverse_wavelet(x)), lambda x: wavelet_transform(SF_transpose(x)))
 
     # Recover the signal
-    lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m) + 1e-8
-    x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
-        A, b, lambda_, iter_lim=data['max_iter'], verbosity=0)
+    # lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m) + 1e-8
+    x_haar = omp_with_linear_operator(A,b, data['k'])
+
+    # omp = OrthogonalMatchingPursuit(n_nonzero_coefs=data['k'])
+    # omp.fit(A, b)
+    # x_haar = omp.coef_
+
+    # x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
+    #     A, b, lambda_, iter_lim=data['max_iter'], verbosity=0)
+
     x_hat = inverse_wavelet(np.real(x_haar))
 
     # Return relevant data.
@@ -272,12 +270,80 @@ def experiment(data: dict) -> dict[str, Any]:
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
     return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "uneven_on_exactly_sparse",
-                   "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal), 'optim_info': opt_info}
+                   "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal)}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
         return_dict['indices'] = indices
     return return_dict
+
+# def lasso_Fourier_haar_basis_prox_descent(n: int, indices: NDArray, b: np.ndarray, x: np.ndarray, lambda_: float, m: int = 0, wavelet="haar", level=5, d=None, max_iter=10000, tol=1e-6, **kwargs):
+#     assert len(indices) > 0
+#     # L is the Lipshitz constant of the gradient, which scales with the operator norm of S^TS, which is the max number of repeated measurements.
+#     if d is None:
+#         d = np.ones(n)
+#     d_tld = d[indices]
+#     L = 2 * np.max(np.unique(indices, return_counts=True)
+#                    [1]*d_tld**2) * n/m  # Assume
+#     # To go fast, I would need to check the coherence at each iterate, to increase step size
+#     haar_x, slices = coeffs_to_array(wavedec2(x, wavelet, level=level))
+#
+#     def wavelet_transform(y: np.ndarray) -> np.ndarray:
+#         return coeffs_to_array(wavedec2(y, wavelet, level=level))[0]
+#
+#     def inverse_wavelet(w: np.ndarray) -> np.ndarray:
+#         return waverec2(array_to_coeffs(
+#             w, slices, output_format="wavedec2"), wavelet)
+#     old_wavelet = np.zeros_like(haar_x)
+#     SF = SF2_func(indices, m, n)
+#     SF_transpose = SF2_transpose_map(indices, m, n, x.shape)
+#     fits = np.zeros(max_iter)
+#     regs = np.zeros(max_iter)
+#     tols = np.zeros(max_iter)
+#     for ind in range(max_iter):
+#         old_wavelet = np.copy(haar_x)
+#         residual = d_tld*(b - SF(inverse_wavelet(haar_x)))
+#         fits[ind] = np.linalg.norm(residual)**2
+#         regs[ind] = np.sum(np.abs(haar_x))
+#         gradient = -2 * \
+#             wavelet_transform(np.real(SF_transpose(d_tld*residual)))
+#         haar_x = soft_threshold(haar_x - gradient / L, lambda_ / L)
+#         tols[ind] = np.linalg.norm(haar_x - old_wavelet)
+#         if np.linalg.norm(haar_x - old_wavelet) < tol:
+#             break
+#     return inverse_wavelet(haar_x), fits, regs, tols
+
+# class ExperimentData(TypedDict):
+#     sqt_n: int
+#     m: int
+#     k: int
+#     sigma: float
+#     lambda_coeff: float
+#     tol: float
+#     img: str
+#     seed: int
+#     save_sampling: bool
+#     sampling_type: Literal["wr", "Ber", "wor"]
+#     adapted_sampling: bool
+#     loc_co: NotRequired[np.ndarray]
+#     global_seed: NotRequired[int]
+#     save_img: bool
+#     level: int
+#     m_tld: NotRequired[int]
+#     recovered_signal: NotRequired[NDArray[np.float32]]
+#     datetime: NotRequired[datetime.datetime]
+#     emp_snr: NotRequired[np.float32]
+#     commit: NotRequired[str]
+#     re: NotRequired[float]
+#     runtime_seconds: NotRequired[int]
+#     fits: NotRequired[np.ndarray]
+#     regs: NotRequired[np.ndarray]
+#     indices: NotRequired[list]
+#     experiment_fn_label: NotRequired[str]
+#     noise_mag: NotRequired[float]
+#     signal_mag: NotRequired[float]
+#     preconditionned_optimization: NotRequired[bool]
+
 
 # starttime = time()
 # returned_df = run_local_df_experiment(make_df(), experiment, ExperimentTypes)
