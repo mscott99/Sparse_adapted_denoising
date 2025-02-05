@@ -163,7 +163,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
+        {'sqt_n': sqt_n, "max_iter": 1e6, "label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
