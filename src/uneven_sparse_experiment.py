@@ -250,14 +250,14 @@ def experiment(data: dict) -> dict[str, Any]:
 
     # Recover the signal
     # lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m) + 1e-8
-    x_haar = omp_with_linear_operator(A,b, data['k'])
+    # x_haar = omp_with_linear_operator(A,b, data['k'])
 
     # omp = OrthogonalMatchingPursuit(n_nonzero_coefs=data['k'])
     # omp.fit(A, b)
     # x_haar = omp.coef_
-
-    # x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
-    #     A, b, lambda_, iter_lim=data['max_iter'], verbosity=0)
+    
+    x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
+        A, b, data['sigma'], iter_lim=data['max_iter'], verbosity=0)
 
     x_hat = inverse_wavelet(np.real(x_haar))
 
