@@ -120,6 +120,12 @@ ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": floa
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
 
+def threshold_vec(v, k):
+    sorted_idx = np.argsort(np.abs(v.ravel()))
+    threshold_idx = sorted_idx[-k:]
+    sparse_coeffs = np.zeros_like(v)
+    sparse_coeffs.ravel()[threshold_idx] = v.flatten()[threshold_idx]
+    return sparse_coeffs
 
 def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) -> np.ndarray:
     """
@@ -136,26 +142,13 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
     """
 
     # Transform to wavelet domain
-    coeffs = to_wavelet(image)
-    # print(coeffs.size)
-    # print(np.sum(coeffs > 1e-5))
-    # print(np.count_nonzero(coeffs))
-    # Get the indices of the largest coefficients
-    sorted_idx = np.argsort(np.abs(coeffs.ravel()))
-    threshold_idx = sorted_idx[-k:]
-    sparse_coeffs = np.zeros_like(coeffs)
-    sparse_coeffs.ravel()[threshold_idx] = coeffs.flatten()[threshold_idx]
-    # print(coeffs)
-    # print(sparse_coeffs)
-    # print(np.allclose(sparse_coeffs, coeffs))
-    # Inverse transform
-    return from_wavelet(sparse_coeffs)
+    return from_wavelet(threshold_vec(to_wavelet(image), k))
 
 
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k': [100], 'sigma': [
-        0.0, 1e-4, 1e-2, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization": [True, False]})
+        0.0, 1e-4, 1e-3, 1e-2, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": [True, False], "alg": ["omp", "bpdn", "bpdn_projected"]})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -163,7 +156,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "max_iter": 1e6, "label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
+        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
@@ -214,6 +207,7 @@ def experiment(data: dict) -> dict[str, Any]:
             d[p > 0] = 1/np.sqrt(n * p[p > 0])
         else:
             indices = np.random.choice(n, m, replace=True)
+            d= np.ones(n)
     elif data['sampling_type'] == "Ber":
         assert m <= n
         if data['adapted_sampling']:
@@ -251,14 +245,20 @@ def experiment(data: dict) -> dict[str, Any]:
     # Recover the signal
     # lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m) + 1e-8
     # x_haar = omp_with_linear_operator(A,b, data['k'])
+    sigma_opt = max(data['sigma'], 1e-8)
 
-    # omp = OrthogonalMatchingPursuit(n_nonzero_coefs=data['k'])
-    # omp.fit(A, b)
-    # x_haar = omp.coef_
-    
-    x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
-        A, b, data['sigma'], iter_lim=data['max_iter'], verbosity=0)
-
+    if data['alg'] == 'omp':
+        x_haar = omp_with_linear_operator(A, b, data['k'], max_iter=data['max_iter'])
+    elif data['alg'] == 'bpdn': 
+        x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
+            A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
+        x_hat = inverse_wavelet(np.real(x_haar))
+    elif data['alg'] == 'bpdn_projected':
+        x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
+            A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
+        x_haar = threshold_vec(x_haar, data['k'])
+    else:
+        raise ValueError("invalid alg argument")
     x_hat = inverse_wavelet(np.real(x_haar))
 
     # Return relevant data.
