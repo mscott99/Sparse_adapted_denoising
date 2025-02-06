@@ -120,12 +120,14 @@ ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": floa
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
 
+
 def threshold_vec(v, k):
     sorted_idx = np.argsort(np.abs(v.ravel()))
     threshold_idx = sorted_idx[-k:]
     sparse_coeffs = np.zeros_like(v)
     sparse_coeffs.ravel()[threshold_idx] = v.flatten()[threshold_idx]
     return sparse_coeffs
+
 
 def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) -> np.ndarray:
     """
@@ -148,7 +150,7 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
-        0.0, 1e-3, 1e-2, 1e-1,3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
+        0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
     df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -207,7 +209,7 @@ def experiment(data: dict) -> dict[str, Any]:
             d[p > 0] = 1/np.sqrt(n * p[p > 0])
         else:
             indices = np.random.choice(n, m, replace=True)
-            d= np.ones(n)
+            d = np.ones(n)
     elif data['sampling_type'] == "Ber":
         assert m <= n
         if data['adapted_sampling']:
@@ -246,31 +248,32 @@ def experiment(data: dict) -> dict[str, Any]:
     # lambda_ = data['lambda_coeff']*data['sigma']/np.sqrt(m) + 1e-8
     # x_haar = omp_with_linear_operator(A,b, data['k'])
     sigma_opt = max(data['sigma'], 1e-8)
-
+    k = data['k']
     if data['alg'] == 'omp':
-        x_haar = omp_with_linear_operator(A, b, data['k'], max_iter=data['max_iter'])
-    elif data['alg'] == 'bpdn': 
+        x_haar = omp_with_linear_operator(A, b, k, max_iter=data['max_iter'])
+    elif data['alg'] == 'bpdn':
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
         x_hat = inverse_wavelet(np.real(x_haar))
     elif data['alg'] == 'bpdn_projected':
+        assert m > k
         # First run BPDN to get initial solution
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
-        
+
         # Find the support of k largest entries
-        support = np.argsort(np.abs(x_haar))[-data['k']:]
-        
+        support = np.argsort(np.abs(x_haar))[-k:]
+
         # Create a matrix for the selected support
-        A_support = np.zeros((len(b), len(support)), dtype=np.complex64)
+        A_support = np.zeros((m, k), dtype=np.complex64)
         for i, idx in enumerate(support):
             basis_vector = np.zeros(n, dtype=np.complex64)
             basis_vector[idx] = 1
             A_support[:, i] = A.matvec(basis_vector)
-        
+
         # Solve least squares problem on the support
         x_ls, _, _, _ = np.linalg.lstsq(A_support, b, rcond=None)
-        
+
         # Create final solution
         x_haar = np.zeros_like(x_haar)
         x_haar[support] = x_ls
