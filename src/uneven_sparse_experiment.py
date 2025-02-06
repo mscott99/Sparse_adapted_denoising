@@ -147,9 +147,9 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k': [100], 'sigma': [
-        0.0, 1e-4, 1e-3, 1e-2, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": [True, False], "alg": ["omp", "bpdn", "bpdn_projected"]})
-    # df = repeat(df, 2)
+    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
+        0.0, 1e-3, 1e-2, 1e-1,3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
+    df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -254,11 +254,29 @@ def experiment(data: dict) -> dict[str, Any]:
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
         x_hat = inverse_wavelet(np.real(x_haar))
     elif data['alg'] == 'bpdn_projected':
+        # First run BPDN to get initial solution
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
-        x_haar = threshold_vec(x_haar, data['k'])
+        
+        # Find the support of k largest entries
+        support = np.argsort(np.abs(x_haar))[-data['k']:]
+        
+        # Create a matrix for the selected support
+        A_support = np.zeros((len(b), len(support)), dtype=np.complex64)
+        for i, idx in enumerate(support):
+            basis_vector = np.zeros(n, dtype=np.complex64)
+            basis_vector[idx] = 1
+            A_support[:, i] = A.matvec(basis_vector)
+        
+        # Solve least squares problem on the support
+        x_ls, _, _, _ = np.linalg.lstsq(A_support, b, rcond=None)
+        
+        # Create final solution
+        x_haar = np.zeros_like(x_haar)
+        x_haar[support] = x_ls
     else:
         raise ValueError("invalid alg argument")
+
     x_hat = inverse_wavelet(np.real(x_haar))
 
     # Return relevant data.
