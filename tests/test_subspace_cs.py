@@ -14,10 +14,10 @@ from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_arr
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
 from scipy.fft import fftshift, fft2
 
-from src.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
-from src.uneven_sparse_experiment import threshold_vec 
+from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
+from sparse_recov.uneven_sparse_experiment import threshold_vec 
 
-from src import experiment,  make_df
+from sparse_recov import experiment,  make_df
 
 def test_experiment():
     df = make_df()

@@ -1,5 +1,5 @@
-from src.uneven_sparse_experiment import ExperimentTypes
-from src.sampling_recov_functions import add_fit_lines_to_grid, add_fit_lines_to_plot, perform_least_squares_fit, plot_on_facets
+from sparse_recov.uneven_sparse_experiment import ExperimentTypes
+from sparse_recov.sampling_recov_functions import add_fit_lines_to_grid, add_fit_lines_to_plot, perform_least_squares_fit, plot_on_facets
 from matplotlib.colors import LogNorm
 import seaborn as sns
 import numpy as np
@@ -37,11 +37,37 @@ g = sns.relplot(
     errorbar="se"
 )
 
+
+
 g.set(xscale="log", yscale="log")
 
 plot_on_facets(add_fit_lines_to_plot, g, fit_df, col_label="k", row_label="alg")
 
 plt.show()
+
+def plot_func(color=None):
+    print(color)
+
+
+for hello in g.col_names:
+    print(hello)
+
+
+
+plt.show()
+
+
+# df = pd.DataFrame({'a': [1,2,3]})
+# pd.to_pickle(df, "./data/test.pickle")
+
+df = pd.read_pickle("./data/jan_2025.pickle")
+
+assert isinstance(df, pd.DataFrame)
+soft_astype_df(df, ExperimentTypes)
+
+df.dtypes
+
+print(df['ERROR'][0])
 
 
 df['runtime_seconds'].mean() * 100/60
