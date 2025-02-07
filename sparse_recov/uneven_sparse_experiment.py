@@ -17,7 +17,7 @@ import spgl1
 
 from scipy.sparse.linalg import LinearOperator
 
-from src.sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights
+from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights
 
 
 class WaveletPartialFourier(LinearOperator):
@@ -149,8 +149,9 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
-        0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
+    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 2, integer=True), 'k': [100], 'sigma': [1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization": False, "alg": "bpdn_projected"})
+    # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
+    #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
     df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
