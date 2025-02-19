@@ -47,9 +47,6 @@ def perform_least_squares_fit(df, x_col, y_col, group_cols, min_x=None):
             zip(group_cols, name if isinstance(name, tuple) else [name]))
         # Get x range information
         x_min = group[x_col].min()
-        if (x_min == 7928):
-            print(name)
-            print(group)
         x_max = group[x_col].max()
 
         # Perform linear fit on log-transformed data
