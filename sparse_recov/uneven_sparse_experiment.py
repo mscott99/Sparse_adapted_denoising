@@ -14,19 +14,9 @@ from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_arr
 from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df, show_vec_mag
 from scipy.fft import fft2
 import spgl1
-
 from scipy.sparse.linalg import LinearOperator
 
-from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights
-
-
-class WaveletPartialFourier(LinearOperator):
-    def __init__(self, idx, n, matmul, rmatmul):
-        self._matvec = matmul
-        self._rmatvec = rmatmul
-        self.idx = idx
-        self.shape = (len(idx), n)
-        self.dtype = np.complex64
+from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier
 
 
 def omp_with_linear_operator(A: LinearOperator, b: np.ndarray, k: int, tol: float = 1e-6, max_iter: int = 1000) -> np.ndarray:
