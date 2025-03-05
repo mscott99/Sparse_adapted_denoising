@@ -1,5 +1,5 @@
 from sparse_recov.uneven_sparse_experiment import ExperimentTypes
-from sparse_recov.sampling_recov_functions import add_fit_lines_to_grid, add_fit_lines_to_plot, perform_least_squares_fit, plot_on_facets
+from sparse_recov.data_analysis import add_fit_lines_to_plot, perform_least_squares_fit, plot_on_facets
 from matplotlib.colors import LogNorm
 import seaborn as sns
 import numpy as np
