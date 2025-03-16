@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from scipy import stats
-from sparse_recov.data_analysis import perform_least_squares_fit
+from sparse_recov.data_analysis import perform_log_least_squares_fit
 
 
 def test_perform_least_squares_fit_basic():
@@ -26,7 +26,7 @@ def test_perform_least_squares_fit_basic():
     })
     
     # Perform the fit
-    results = perform_least_squares_fit(df, 'x', 'y', ['group'])
+    results = perform_log_least_squares_fit(df, 'x', 'y', ['group'])
     
     # Check that we have one row in the results (one group)
     assert len(results) == 1
@@ -69,7 +69,7 @@ def test_perform_least_squares_fit_multiple_groups():
     })
     
     # Perform the fit
-    results = perform_least_squares_fit(df, 'x', 'y', ['group'])
+    results = perform_log_least_squares_fit(df, 'x', 'y', ['group'])
     
     # Check that we have two rows in the results (two groups)
     assert len(results) == 2
@@ -114,7 +114,7 @@ def test_perform_least_squares_fit_with_min_x():
     })
     
     # Perform fit with min_x = 100 to focus on the second segment
-    results = perform_least_squares_fit(df, 'x', 'y', ['group'], min_x=100)
+    results = perform_log_least_squares_fit(df, 'x', 'y', ['group'], min_x=100)
     
     # Check that the slope is close to 2
     assert np.isclose(results.iloc[0]['slope'], 2.0, atol=0.1)
@@ -158,7 +158,7 @@ def test_perform_least_squares_fit_multiple_group_cols():
     df = pd.DataFrame(data)
     
     # Perform the fit
-    results = perform_least_squares_fit(df, 'x', 'y', ['group1', 'group2'])
+    results = perform_log_least_squares_fit(df, 'x', 'y', ['group1', 'group2'])
     
     # Check that we have four rows in the results (four group combinations)
     assert len(results) == 4

@@ -11,12 +11,13 @@ from typing import TypedDict, Literal, Any, Tuple, List
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
 from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_array, array_to_coeffs
-from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df, show_vec_mag
+from utils_data import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
+from utils_plot import show_vec_mag
 from scipy.fft import fft2
 import spgl1
 from scipy.sparse.linalg import LinearOperator
 
-from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier
+from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier, threshold_prob_weights
 
 
 def omp_with_linear_operator(A: LinearOperator, b: np.ndarray, k: int, tol: float = 1e-6, max_iter: int = 1000) -> np.ndarray:
@@ -139,17 +140,18 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 12, integer=True), 'k': [60], 'sigma': [0.0, 0.001, 0.01,  0.1,   0.3, 1.0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True], "preconditionned_optimization": True, "alg": "bpdn_projected"})
+    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 12, integer=True), 'k': [60], 'sigma': [0.0, 0.001, 0.01,  0.1,   0.3, 1.0], 'img': "camera", "sampling_type": "wr",
+                          "adapted_sampling": [True], "preconditionned_optimization": True, "alg": "bpdn_projected", "num_robust_probs": [int(sqt_n**2/3), int(sqt_n**2*2/3), 1]})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "adapted_sampling": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
-    df = repeat(df, 5)
+    df = repeat(df, 1)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "uneven_sparser", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": True})
+        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "robust_schemes", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
@@ -193,11 +195,14 @@ def experiment(data: dict) -> dict[str, Any]:
     d = np.array([])
     if data['sampling_type'] == "wr":
         if data['adapted_sampling'] == True:
-            p = (loc_co**2/np.sum(loc_co**2)).ravel()
-            indices = np.random.choice(
-                n, m, replace=True, p=p)
+            if 'num_robust_probs' not in data.keys():
+                p = (loc_co**2/np.sum(loc_co**2)).ravel()
+            else:
+                p = threshold_prob_weights(
+                    data['num_robust_probs'], loc_co.ravel())
             d = np.zeros_like(p)
             d[p > 0] = 1/np.sqrt(n * p[p > 0])
+            indices = np.random.choice(n, m, replace=True, p=p)
         else:
             indices = np.random.choice(n, m, replace=True)
             d = np.ones(n)

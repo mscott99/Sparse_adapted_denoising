@@ -1,10 +1,10 @@
 from sparse_recov.uneven_sparse_experiment import ExperimentTypes
-from sparse_recov.data_analysis import add_fit_lines_to_plot, perform_least_squares_fit, plot_on_facets
+from sparse_recov.data_analysis import add_log_fit_line_to_plot, perform_log_least_squares_fit, plot_on_facets
 from matplotlib.colors import LogNorm
 import seaborn as sns
 import numpy as np
 import pandas as pd
-from utils import repeat, soft_astype_df
+from utils_data import repeat, soft_astype_df
 import matplotlib.pyplot as plt
 
 df = pd.read_pickle("./data/jan_2025_21.pickle")
@@ -14,7 +14,7 @@ df = pd.read_pickle("./data/jan_2025_21.pickle")
 
 mydf = df[(df['adapted_sampling']==True)]
 
-fit_df = perform_least_squares_fit(
+fit_df = perform_log_least_squares_fit(
     mydf[mydf['sigma'] > 1e-3],
     x_col='m',
     y_col='re',
@@ -41,7 +41,7 @@ g = sns.relplot(
 
 g.set(xscale="log", yscale="log")
 
-plot_on_facets(add_fit_lines_to_plot, g, fit_df, col_label="k", row_label="alg")
+plot_on_facets(add_log_fit_line_to_plot, g, fit_df, col_label="k", row_label="alg")
 
 plt.show()
 

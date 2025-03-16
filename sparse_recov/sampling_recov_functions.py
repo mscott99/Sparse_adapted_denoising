@@ -32,6 +32,16 @@ def SDF2_transpose_map(indices, m, n, shape, d):
 def wr_prob_vec(loc_co):
     return loc_co**2/np.sum(loc_co**2)
 
+def threshold_prob_weights(num_robusts, loc_co):
+    assert num_robusts <= len(loc_co)
+    assert 0 <= num_robusts
+    p = loc_co
+    perm = np.argsort(p)
+    p = p[perm]
+    p[num_robusts:] = p[num_robusts:]**2
+    p[perm] = p
+    return p/ np.sum(p)
+
 
 def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
     pos_co = loc_co[loc_co > 0]

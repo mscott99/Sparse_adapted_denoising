@@ -7,7 +7,7 @@ import seaborn as sns
 import pandas as pd
 
 
-def perform_least_squares_fit(df, x_col, y_col, group_cols, min_x=None):
+def perform_log_least_squares_fit(df, x_col, y_col, group_cols, min_x=None):
     """
     Perform least squares fit on grouped data, including x range information
 
@@ -65,7 +65,7 @@ def perform_least_squares_fit(df, x_col, y_col, group_cols, min_x=None):
     return pd.DataFrame(fit_results)
 
 
-def add_fit_lines_to_plot(subplot_fits, ax,
+def add_log_fit_line_to_plot(subplot_fits, ax,
                           line_style='--',
                           alpha=0.5,
                           color='red',

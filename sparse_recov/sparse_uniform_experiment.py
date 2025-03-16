@@ -8,7 +8,8 @@ from typing import TypedDict, NotRequired, Literal, Any
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
 from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs
-from utils import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df, df_vals, run_local_df_experiment
+from utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df, run_local_df_experiment
+from utils_plot import df_vals
 
 from sampling_recov_functions import SF_func, SF_transpose_map, soft_threshold,Bernoulli_prob_weights 
 

@@ -7,7 +7,8 @@ import seaborn as sns
 from typing import TypedDict, Literal, Any, Tuple, List
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
-from utils import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df, show_vec_mag
+from utils_data import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
+from utils_plot import show_vec_mag
 from scipy.fft import fftshift, fft2
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "level": int, "img": pd.CategoricalDtype(
