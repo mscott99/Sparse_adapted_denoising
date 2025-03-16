@@ -78,11 +78,11 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 8, integer=True), 'k': [60], 'sigma': [0.0, 0.001, 0.01,  0.1,   0.3, 1.0], 'img': "camera", "sampling_type": "wr",
+    df = allcombinations({'m': logspace(3e2, sqt_n**2*4, 8, integer=True), 'k': [60], 'sigma': [0.0, 0.001, 0.01,  0.1,   0.3, 1.0], 'img': ["camera", "phantom"], "sampling_type": "wr",
                           "sampling_dist_type": ["uniform", "optimized", "robust"], "preconditionned_optimization": True, "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
-    df = repeat(df, 1)
+    df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
