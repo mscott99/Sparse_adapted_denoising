@@ -70,6 +70,36 @@ def SF2_func(indices: NDArray, m, n):
 def SDF2_func(indices, m, n, d):
     return lambda x: np.sqrt(n/m) * (d*fft2(x, norm="ortho").flat)[indices]
 
+def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
+        d = np.array([])
+        flat_co = loc_co.ravel()
+        n = len(flat_co)
+        if sampling_type == "wr":
+            if sampling_dist_type=="robust":
+                p = flat_co/ np.sum(flat_co)
+            elif sampling_dist_type=="optimized":
+                p = flat_co**2/np.sum(flat_co**2)
+            elif sampling_dist_type =="uniform":
+                p = np.repeat(1/n, n)
+            else:
+                raise NotImplementedError("Sampling scheme "+ sampling_dist_type+" not implemented")
+            d = np.zeros_like(p)
+            d[p > 0] = 1/np.sqrt(n * p[p > 0])
+            indices = np.random.choice(n, m, replace=True, p=p)
+        elif sampling_type == "Ber":
+            assert m <= n, "Bernoulli sampling requires m less than n"
+            if sampling_dist_type == "optimized":
+                weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
+                d = np.zeros_like(weights)
+                d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
+            elif sampling_dist_type == "uniform":
+                weights = m/n
+            else:
+                raise NotImplementedError()
+            indices = np.where(np.random.rand(n) < weights)[0]
+        else:
+            raise NotImplementedError()
+        return (indices, d)
 
 def soft_threshold(x, lambda_):
     """Soft thresholding operator"""

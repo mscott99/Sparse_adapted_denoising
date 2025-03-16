@@ -1,23 +1,16 @@
 # This file is for uneven signal recovery.
-from matplotlib.colors import LogNorm
-import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.linear_model import OrthogonalMatchingPursuit
 from time import time
 import numpy as np
-from numpy.typing import NDArray
-import seaborn as sns
-from typing import TypedDict, Literal, Any, Tuple, List
+from typing import Any, Tuple, List
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
-from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs, coeffs_to_array, array_to_coeffs
-from utils_data import logspace, allcombinations, add_standard_attributes, run_local_df_experiment, repeat, soft_astype_df
-from utils_plot import show_vec_mag
+from pywt import wavedec2, waverec2, coeffs_to_array, array_to_coeffs
+from utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from scipy.fft import fft2
 import spgl1
-from scipy.sparse.linalg import LinearOperator
 
-from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier
+from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier, sample_CS_matrix
 
 
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
@@ -121,37 +114,6 @@ def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
         true_signal, k, wavelet_transform, inverse_wavelet)
     true_signal = true_signal/np.linalg.norm(true_signal)
     return true_signal
-
-def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
-        d = np.array([])
-        flat_co = loc_co.ravel()
-        n = len(flat_co)
-        if sampling_type == "wr":
-            if sampling_dist_type=="robust":
-                p = flat_co/ np.sum(flat_co)
-            elif sampling_dist_type=="optimized":
-                p = flat_co**2/np.sum(flat_co**2)
-            elif sampling_dist_type =="uniform":
-                p = np.repeat(1/n, n)
-            else:
-                raise NotImplementedError("Sampling scheme "+ sampling_dist_type+" not implemented")
-            d = np.zeros_like(p)
-            d[p > 0] = 1/np.sqrt(n * p[p > 0])
-            indices = np.random.choice(n, m, replace=True, p=p)
-        elif sampling_type == "Ber":
-            assert m <= n, "Bernoulli sampling requires m less than n"
-            if sampling_dist_type == "optimized":
-                weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
-                d = np.zeros_like(weights)
-                d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
-            elif sampling_dist_type == "uniform":
-                weights = m/n
-            else:
-                raise NotImplementedError()
-            indices = np.where(np.random.rand(n) < weights)[0]
-        else:
-            raise NotImplementedError()
-        return (indices, d)
 
 def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
