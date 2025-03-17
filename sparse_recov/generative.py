@@ -208,17 +208,17 @@ def make_df():
     df = allcombinations({
         'm': logspace(3e2, sqt_n**2 * 4, 8, integer=True),  # Number of measurements
         'k': [60],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.01, 0.3, 1.0],  # Noise levels
+        'sigma': [0.3],  # Noise levels
         'sampling_type': 'wr',  # Weighted random sampling (fixed as in generative.py)
-        'sampling_dist_type': ['uniform', 'optimized', 'robust'],  # Sampling distribution types
-        'preconditionned_optimization': [True, False],  # Preconditioning option
+        'sampling_dist_type': ['optimized', 'robust'],  # Sampling distribution types
+        'preconditionned_optimization': [True],  # Preconditioning option
         'lr': [0.001],  # Learning rate for optimization
         'num_iter': [5000],  # Number of iterations for recovery
         'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
     })
     
     # Repeat experiments for statistical robustness
-    df = repeat(df, 5)
+    df = repeat(df, 1)
     
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
@@ -234,13 +234,13 @@ def make_df():
     # Update DataFrame attributes with experiment-specific settings
     df.attrs.update({
         'sqt_n': sqt_n,
-        'max_iter': 1e4,  # Maximum iterations (though num_iter is used in recover_signal)
+        'max_iter': 1e3,  # Maximum iterations (though num_iter is used in recover_signal)
         'label': 'generative_recovery',
         'global_seed': global_seed,
         'save_img': False,
         'save_sampling': False
     })
-    
+    add_standard_attributes(df)
     # Define experiment types for type consistency (adapted from sparse case)
     ExperimentTypes = {
         'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
@@ -249,11 +249,61 @@ def make_df():
         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
         'emp_snr': float, 'preconditionned_optimization': bool
     }
-    
     # Apply type casting
     df = soft_astype_df(df, ExperimentTypes)
-    
     return df
+
+# def make_df():
+#     sqt_n = 32  # Fixed image size, matching sparse experiment
+#     df = allcombinations({
+#         'm': logspace(3e2, sqt_n**2 * 4, 8, integer=True),  # Number of measurements
+#         'k': [60],  # Latent dimension (analogous to sparsity level)
+#         'sigma': [0.0, 0.01, 0.3, 1.0],  # Noise levels
+#         'sampling_type': 'wr',  # Weighted random sampling (fixed as in generative.py)
+#         'sampling_dist_type': ['uniform', 'optimized', 'robust'],  # Sampling distribution types
+#         'preconditionned_optimization': [True, False],  # Preconditioning option
+#         'lr': [0.001],  # Learning rate for optimization
+#         'num_iter': [5000],  # Number of iterations for recovery
+#         'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
+#     })
+#     
+#     # Repeat experiments for statistical robustness
+#     df = repeat(df, 5)
+#     
+#     # Set categorical type for sampling_type
+#     df['sampling_type'] = df['sampling_type'].astype('category')
+#     
+#     # Assign random seeds
+#     global_seed = 1234
+#     np.random.seed(global_seed)
+#     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
+#     
+#     # Add standard attributes
+#     add_standard_attributes(df)
+#     
+#     # Update DataFrame attributes with experiment-specific settings
+#     df.attrs.update({
+#         'sqt_n': sqt_n,
+#         'max_iter': 1e4,  # Maximum iterations (though num_iter is used in recover_signal)
+#         'label': 'generative_recovery',
+#         'global_seed': global_seed,
+#         'save_img': False,
+#         'save_sampling': False
+#     })
+#     
+#     # Define experiment types for type consistency (adapted from sparse case)
+#     ExperimentTypes = {
+#         'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
+#         'lr': float, 'num_iter': int, 'num_repeats_in_optim': int,
+#         'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
+#         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
+#         'emp_snr': float, 'preconditionned_optimization': bool
+#     }
+#     
+#     # Apply type casting
+#     df = soft_astype_df(df, ExperimentTypes)
+#     
+#     return df
 
 def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
