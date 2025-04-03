@@ -6,6 +6,7 @@ from typing import TypedDict, Literal, Any, Tuple, List, Optional
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from numpy.typing import NDArray
 from scipy.sparse.linalg import LinearOperator
 from typing import Tuple, Callable
 
@@ -155,7 +156,7 @@ class CSMeasurementMatrix(nn.Module):
 
 def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor, 
                   k: int, lr: float = 0.01, num_iterations: int = 1000, batch_size = 5,
-                  device: str = 'cpu') -> torch.Tensor:
+                  device: str = 'cpu') -> Tuple[torch.Tensor, NDArray]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
     
@@ -182,13 +183,14 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
     # Initialize latent vector z from N(0,1) as a trainable parameter
     z = torch.randn(batch_size, k, requires_grad=True, device=device)
     optimizer = optim.Adam([z], lr=lr)
-    
+    losses = []
     # Optimization loop
     for _ in range(num_iterations):
         optimizer.zero_grad()
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
         loss = torch.sum(offset.real**2 + offset.imag**2) 
+        losses.append(loss)
         # Backpropagate and update z
         loss.backward()
         optimizer.step()
@@ -201,7 +203,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         best = torch.argmax(loss)
         recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(0)  # Shape: (height, width), e.g., (28, 28)
     
-    return recovered_signal
+    return recovered_signal, np.ndarray(losses)
 
 def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
@@ -214,7 +216,7 @@ def make_df():
         'preconditionned_optimization': [True],  # Preconditioning option
         'lr': [0.001],  # Learning rate for optimization
         'num_iter': [40000],  # Number of iterations for recovery
-        'num_repeats_in_optim': [3]  # Number of optimization repeats (batch size in recover_signal)
+        'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
     })
     
     # Repeat experiments for statistical robustness
@@ -234,11 +236,11 @@ def make_df():
     # Update DataFrame attributes with experiment-specific settings
     df.attrs.update({
         'sqt_n': sqt_n,
-        'max_iter': 30e3,  # Maximum iterations (though num_iter is used in recover_signal)
         'label': 'generative_vanilla',
         'global_seed': global_seed,
         'save_img': False,
-        'save_sampling': False
+        'save_sampling': False,
+        'save_opt_data':True
     })
     add_standard_attributes(df)
     # Define experiment types for type consistency (adapted from sparse case)
@@ -340,7 +342,7 @@ def experiment(data: dict) -> dict[str, Any]:
         A = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n), False)
         b_opt = b
 
-    x_hat = recover_signal(generator, A, b_opt, data['k'], data['lr'], data['num_iter'], data['num_repeats_in_optim'], device=device)
+    x_hat, opt_data = recover_signal(generator, A, b_opt, data['k'], data['lr'], data['num_iter'], data['num_repeats_in_optim'], device=device)
     
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
@@ -358,5 +360,6 @@ def experiment(data: dict) -> dict[str, Any]:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
         return_dict['indices'] = indices
+    if 'save_opt_data' in data and data['save_opt_data']:
+        return_dict['opt_data'] = opt_data
     return return_dict
-
