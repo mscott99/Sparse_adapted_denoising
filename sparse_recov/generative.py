@@ -206,19 +206,19 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
     df = allcombinations({
-        'm': logspace(3e2, sqt_n**2 * 4, 8, integer=True),  # Number of measurements
-        'k': [60],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.3],  # Noise levels
+        'm': logspace(2, sqt_n**2 * 4, 10, integer=True),  # Number of measurements
+        'k': [30],  # Latent dimension (analogous to sparsity level)
+        'sigma': [0.0],  # Noise levels
         'sampling_type': 'wr',  # Weighted random sampling (fixed as in generative.py)
-        'sampling_dist_type': ['optimized', 'robust'],  # Sampling distribution types
+        'sampling_dist_type': ['optimized'],  # Sampling distribution types
         'preconditionned_optimization': [True],  # Preconditioning option
         'lr': [0.001],  # Learning rate for optimization
-        'num_iter': [5000],  # Number of iterations for recovery
-        'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
+        'num_iter': [40000],  # Number of iterations for recovery
+        'num_repeats_in_optim': [3]  # Number of optimization repeats (batch size in recover_signal)
     })
     
     # Repeat experiments for statistical robustness
-    df = repeat(df, 1)
+    df = repeat(df, 20)
     
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
@@ -234,8 +234,8 @@ def make_df():
     # Update DataFrame attributes with experiment-specific settings
     df.attrs.update({
         'sqt_n': sqt_n,
-        'max_iter': 1e3,  # Maximum iterations (though num_iter is used in recover_signal)
-        'label': 'generative_recovery',
+        'max_iter': 30e3,  # Maximum iterations (though num_iter is used in recover_signal)
+        'label': 'generative_vanilla',
         'global_seed': global_seed,
         'save_img': False,
         'save_sampling': False
