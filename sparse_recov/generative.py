@@ -203,7 +203,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         best = torch.argmax(loss)
         recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(0)  # Shape: (height, width), e.g., (28, 28)
     
-    return recovered_signal, np.ndarray(losses)
+    return recovered_signal, np.array(losses)
 
 def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
