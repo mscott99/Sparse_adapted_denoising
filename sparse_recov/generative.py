@@ -208,7 +208,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
     df = allcombinations({
-        'm': logspace(2, sqt_n**2 * 4, 10, integer=True),  # Number of measurements
+        'm': logspace(2, sqt_n**2 * 4, 6, integer=True),  # Number of measurements
         'k': [30],  # Latent dimension (analogous to sparsity level)
         'sigma': [0.0],  # Noise levels
         'sampling_type': 'wr',  # Weighted random sampling (fixed as in generative.py)
@@ -220,7 +220,7 @@ def make_df():
     })
     
     # Repeat experiments for statistical robustness
-    df = repeat(df, 20)
+    df = repeat(df, 2)
     
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
