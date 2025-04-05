@@ -189,8 +189,8 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         optimizer.zero_grad()
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
-        loss = torch.sum(offset.real**2 + offset.imag**2) 
-        losses.append(loss)
+        loss = torch.sum(offset.real**2 + offset.imag**2)
+        losses.append(loss.detach().numpy())
         # Backpropagate and update z
         loss.backward()
         optimizer.step()
@@ -215,7 +215,7 @@ def make_df():
         'sampling_dist_type': ['optimized'],  # Sampling distribution types
         'preconditionned_optimization': [True],  # Preconditioning option
         'lr': [0.001],  # Learning rate for optimization
-        'num_iter': [40000],  # Number of iterations for recovery
+        'max_iter': [40000],  # Number of iterations for recovery
         'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
     })
     
@@ -246,7 +246,7 @@ def make_df():
     # Define experiment types for type consistency (adapted from sparse case)
     ExperimentTypes = {
         'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
-        'lr': float, 'num_iter': int, 'num_repeats_in_optim': int,
+        'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
         'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
         'emp_snr': float, 'preconditionned_optimization': bool
@@ -265,7 +265,7 @@ def make_df():
 #         'sampling_dist_type': ['uniform', 'optimized', 'robust'],  # Sampling distribution types
 #         'preconditionned_optimization': [True, False],  # Preconditioning option
 #         'lr': [0.001],  # Learning rate for optimization
-#         'num_iter': [5000],  # Number of iterations for recovery
+#         'max_iter': [5000],  # Number of iterations for recovery
 #         'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
 #     })
 #     
@@ -296,7 +296,7 @@ def make_df():
 #     # Define experiment types for type consistency (adapted from sparse case)
 #     ExperimentTypes = {
 #         'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
-#         'lr': float, 'num_iter': int, 'num_repeats_in_optim': int,
+#         'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
 #         'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
 #         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
 #         'emp_snr': float, 'preconditionned_optimization': bool
@@ -342,7 +342,7 @@ def experiment(data: dict) -> dict[str, Any]:
         A = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n), False)
         b_opt = b
 
-    x_hat, opt_data = recover_signal(generator, A, b_opt, data['k'], data['lr'], data['num_iter'], data['num_repeats_in_optim'], device=device)
+    x_hat, opt_data = recover_signal(generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], device=device)
     
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
