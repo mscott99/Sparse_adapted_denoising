@@ -154,12 +154,13 @@ class CSMeasurementMatrix(nn.Module):
                 measurements  # Element-wise multiplication
         return measurements
 
-def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor, 
-                  k: int, lr: float = 0.01, num_iterations: int = 1000, batch_size = 5,
-                  device: str = 'cpu') -> Tuple[torch.Tensor, NDArray]:
+
+def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor,
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop=1e-7,
+                   device: str = 'cpu') -> Tuple[torch.Tensor, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
-    
+
     Args:
         generator: Generator model (non-trainable) producing 2D signals
         measurements: Observed measurements (tensor, shape (m_tld,) or (1, m_tld))
@@ -168,7 +169,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         lr: Learning rate for optimization (default 0.01)
         num_iterations: Number of optimization iterations (default 1000)
         device: Device to run the optimization on ('cpu' or 'cuda')
-    
+
     Returns:
         recovered_signal: Recovered signal as a numpy array (e.g., 28x28)
         z_opt: Optimized latent vector as a torch tensor
@@ -191,48 +192,57 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         offset = A(x_tensor) - b
         loss = torch.sum(offset.real**2 + offset.imag**2)
         losses.append(loss.detach().numpy())
+        if loss < tol_stop:
+            break
         # Backpropagate and update z
         loss.backward()
         optimizer.step()
-    
+
     # Final signal recovery
     with torch.no_grad():
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
-        loss = torch.sum(offset.real**2 + offset.imag**2, dim=1, keepdim=False) 
+        loss = torch.sum(offset.real**2 + offset.imag**2, dim=1, keepdim=False)
         best = torch.argmax(loss)
-        recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(0)  # Shape: (height, width), e.g., (28, 28)
-    
-    return recovered_signal, np.array(losses)
+        smallest_loss = torch.max(loss).item()
+        recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(
+            0)  # Shape: (height, width), e.g., (28, 28)
+
+    return recovered_signal, np.array(losses), smallest_loss
+
 
 def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
     df = allcombinations({
         'm': logspace(2, sqt_n**2, 4, integer=True),  # Number of measurements
-        'k': [30, 200],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.3, 1.0],  # Noise levels
-        'sampling_type': 'wr',  # Weighted random sampling (fixed as in generative.py)
-        'sampling_dist_type': ['optimized'],  # Sampling distribution types
+        'k': [4, 30, 200],  # Latent dimension (analogous to sparsity level)
+        'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
+        # Weighted random sampling (fixed as in generative.py)
+        'sampling_type': 'wr',
+        # Sampling distribution types
+        'sampling_dist_type': ['optimized', "uniform"],
         'preconditionned_optimization': [True],  # Preconditioning option
-        'lr': [0.001],  # Learning rate for optimization
+        'lr': [0.001, 0.1],  # Learning rate for optimization
         'max_iter': [20000],  # Number of iterations for recovery
-        'num_repeats_in_optim': [1]  # Number of optimization repeats (batch size in recover_signal)
+        'opt_tol_stop': [1e-7],
+        # Number of optimization repeats (batch size in recover_signal)
+        'num_repeats_in_optim': [1]
     })
-    
+
     # Repeat experiments for statistical robustness
     df = repeat(df, 1)
-    
+
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
-    
+
     # Assign random seeds
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-    
+
     # Add standard attributes
     add_standard_attributes(df)
-    
+
     # Update DataFrame attributes with experiment-specific settings
     df.attrs.update({
         'sqt_n': sqt_n,
@@ -240,7 +250,7 @@ def make_df():
         'global_seed': global_seed,
         'save_img': False,
         'save_sampling': False,
-        'save_opt_data':True
+        'save_opt_data': True
     })
     add_standard_attributes(df)
     # Define experiment types for type consistency (adapted from sparse case)
@@ -249,7 +259,8 @@ def make_df():
         'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
         'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
-        'emp_snr': float, 'preconditionned_optimization': bool
+        'emp_snr': float, 'preconditionned_optimization': bool,
+        "opt_tol_stop": float
     }
     # Apply type casting
     df = soft_astype_df(df, ExperimentTypes)
@@ -268,21 +279,21 @@ def make_df():
 #         'max_iter': [5000],  # Number of iterations for recovery
 #         'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
 #     })
-#     
+#
 #     # Repeat experiments for statistical robustness
 #     df = repeat(df, 5)
-#     
+#
 #     # Set categorical type for sampling_type
 #     df['sampling_type'] = df['sampling_type'].astype('category')
-#     
+#
 #     # Assign random seeds
 #     global_seed = 1234
 #     np.random.seed(global_seed)
 #     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-#     
+#
 #     # Add standard attributes
 #     add_standard_attributes(df)
-#     
+#
 #     # Update DataFrame attributes with experiment-specific settings
 #     df.attrs.update({
 #         'sqt_n': sqt_n,
@@ -292,7 +303,7 @@ def make_df():
 #         'save_img': False,
 #         'save_sampling': False
 #     })
-#     
+#
 #     # Define experiment types for type consistency (adapted from sparse case)
 #     ExperimentTypes = {
 #         'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
@@ -301,11 +312,12 @@ def make_df():
 #         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
 #         'emp_snr': float, 'preconditionned_optimization': bool
 #     }
-#     
+#
 #     # Apply type casting
 #     df = soft_astype_df(df, ExperimentTypes)
-#     
+#
 #     return df
+
 
 def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
@@ -342,8 +354,9 @@ def experiment(data: dict) -> dict[str, Any]:
         A = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n), False)
         b_opt = b
 
-    x_hat, opt_data = recover_signal(generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], device=device)
-    
+    x_hat, opt_data, smallest_loss = recover_signal(
+        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device)
+
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
     # Return relevant data.
@@ -355,7 +368,7 @@ def experiment(data: dict) -> dict[str, Any]:
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
     return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "uneven_on_exactly_sparse",
-                   "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal)}
+                   "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal), "smallest_loss": smallest_loss}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:

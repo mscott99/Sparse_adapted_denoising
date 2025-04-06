@@ -12,7 +12,9 @@ def generator():
 
 def test_experiment():
     df = make_df()
-    experiment({**df.attrs, **df.loc[0]})  # test for runtime errors
+    first_row = df.loc[0]
+    first_row['max_iter'] = 2
+    experiment({**df.attrs, **first_row})  # test for runtime errors
 
 # Test generate_random_signal
 def test_generate_random_signal(generator):
