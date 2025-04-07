@@ -157,7 +157,7 @@ class CSMeasurementMatrix(nn.Module):
 
 def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor,
                    k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop=1e-7,
-                   device: str = 'cpu') -> Tuple[torch.Tensor, NDArray, float]:
+                   device: str = 'cpu', beta1 = 0.9, beta2 = 0.999) -> Tuple[torch.Tensor, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -183,7 +183,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 
     # Initialize latent vector z from N(0,1) as a trainable parameter
     z = torch.randn(batch_size, k, requires_grad=True, device=device)
-    optimizer = optim.Adam([z], lr=lr)
+    optimizer = optim.Adam([z], lr=lr, betas = (beta1, beta2))
     losses = []
     # Optimization loop
     for _ in range(num_iterations):
@@ -214,19 +214,21 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
     df = allcombinations({
-        'm': logspace(2, sqt_n**2, 4, integer=True),  # Number of measurements
+        'm': logspace(2, sqt_n**2, 3, integer=True),  # Number of measurements
         'k': [15],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.01, 0.3, 1.0],  # Noise levels
+        'sigma': [0.3],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['optimized', "uniform"],
+        'sampling_dist_type': ['optimized'],
         'preconditionned_optimization': [True],  # Preconditioning option
         'lr': [0.01, 0.1, 1.0, 10.0],  # Learning rate for optimization
+        'beta1': [0.3, 0.8, 0.9, 0.99],
+        'beta2': [0.9, 0.99, 0.999],
         'max_iter': [15000],  # 15000 more than enough for MNIST recovery.
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [1]
+        'num_repeats_in_optim': [1],
     })
 
     # Repeat experiments for statistical robustness
@@ -260,7 +262,9 @@ def make_df():
         'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
         'emp_snr': float, 'preconditionned_optimization': bool,
-        "opt_tol_stop": float
+        "opt_tol_stop": float,
+        "beta1":float,
+        "beta2":float
     }
     # Apply type casting
     df = soft_astype_df(df, ExperimentTypes)
@@ -355,7 +359,7 @@ def experiment(data: dict) -> dict[str, Any]:
         b_opt = b
 
     x_hat, opt_data, smallest_loss = recover_signal(
-        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device)
+        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device, beta1 = data["beta1"], beta2 = data["beta2"])
 
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
