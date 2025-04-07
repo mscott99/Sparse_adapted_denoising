@@ -216,15 +216,15 @@ def make_df():
     df = allcombinations({
         'm': logspace(2, sqt_n**2, 3, integer=True),  # Number of measurements
         'k': [15],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.3],  # Noise levels
+        'sigma': [0.05],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
         'sampling_dist_type': ['optimized'],
         'preconditionned_optimization': [True],  # Preconditioning option
-        'lr': [0.01, 0.1, 1.0, 10.0],  # Learning rate for optimization
-        'beta1': [0.3, 0.8, 0.9, 0.99],
-        'beta2': [0.9, 0.99, 0.999],
+        'lr': [0.01, 0.1],  # Learning rate for optimization
+        'beta1': [0.75, 0.9, 0.99],
+        'beta2': [0.995, 0.999, 0.9995],
         'max_iter': [15000],  # 15000 more than enough for MNIST recovery.
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
