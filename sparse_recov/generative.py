@@ -214,19 +214,19 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
     df = allcombinations({
-        'm': logspace(2, sqt_n**2, 3, integer=True),  # Number of measurements
-        'k': [15],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.05],  # Noise levels
+        'm': logspace(2, sqt_n**2*2, 8, integer=True),  # Number of measurements
+        'k': [16],  # Latent dimension (analogous to sparsity level)
+        'sigma': [0.0, 0.05, 0.2, 0.5],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['optimized'],
-        'preconditionned_optimization': [True],  # Preconditioning option
-        'lr': [0.01, 0.1],  # Learning rate for optimization
-        'beta1': [0.75, 0.9, 0.99],
-        'beta2': [0.995, 0.999, 0.9995],
-        'max_iter': [15000],  # 15000 more than enough for MNIST recovery.
-        'opt_tol_stop': [1e-7],
+        'sampling_dist_type': ['optimized', "robust", "uniform"],
+        'preconditionned_optimization': [True, False],  # Preconditioning option
+        'lr': [0.1],  # Learning rate for optimization
+        'beta1': [0.8],
+        'beta2': [0.999],
+        'max_iter': [300],  # 15000 more than enough for MNIST recovery.
+        'opt_tol_stop': [2e-3],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
     })
