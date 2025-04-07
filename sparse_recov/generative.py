@@ -215,15 +215,15 @@ def make_df():
     sqt_n = 32  # Fixed image size, matching sparse experiment
     df = allcombinations({
         'm': logspace(2, sqt_n**2, 4, integer=True),  # Number of measurements
-        'k': [4, 30, 200],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
+        'k': [15],  # Latent dimension (analogous to sparsity level)
+        'sigma': [0.0, 0.01, 0.3, 1.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
         'sampling_dist_type': ['optimized', "uniform"],
         'preconditionned_optimization': [True],  # Preconditioning option
-        'lr': [0.001, 0.1],  # Learning rate for optimization
-        'max_iter': [20000],  # Number of iterations for recovery
+        'lr': [0.01, 0.1, 1.0, 10.0],  # Learning rate for optimization
+        'max_iter': [15000],  # 15000 more than enough for MNIST recovery.
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1]
