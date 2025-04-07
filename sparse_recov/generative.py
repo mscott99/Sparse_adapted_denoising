@@ -216,7 +216,7 @@ def make_df():
     df = allcombinations({
         'm': logspace(2, sqt_n**2*2, 8, integer=True),  # Number of measurements
         'k': [16],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.05, 0.2, 0.5],  # Noise levels
+        'sigma': [0.0, 0.0001, 0.05, 0.2, 0.5],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
@@ -232,7 +232,7 @@ def make_df():
     })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 1)
+    df = repeat(df, 100)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
