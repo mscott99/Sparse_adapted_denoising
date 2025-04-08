@@ -2,19 +2,27 @@ import pytest
 import torch
 import numpy as np
 from sparse_recov.generative import Generator, generate_random_signal, get_fft_loc_coherences, CSMeasurementMatrix, recover_signal, make_df, experiment
+from sparse_recov.train_model import ConvVAE
 
 # Fixture for a simple generator
 @pytest.fixture
 def generator():
     latent_dim = 10
     output_shape = (4, 4)  # Small size for quick testing
-    return Generator(latent_dim=latent_dim, output_shape=output_shape)
+    return Generator(k=latent_dim, output_shape=output_shape)
 
 def test_experiment():
     df = make_df()
     first_row = df.loc[0]
     first_row['max_iter'] = 2
     experiment({**df.attrs, **first_row})  # test for runtime errors
+
+def test_generator_integration():
+    vae = ConvVAE(k=8)
+    z = torch.randn(1, 8)
+    output = vae.decode(z)
+    assert output.shape == (1, 1, 28, 28), f"Expected output shape (1, 1, 28, 28), got {output.shape}"
+    print("Generator integration test passed.")
 
 # Test generate_random_signal
 def test_generate_random_signal(generator):
@@ -24,7 +32,7 @@ def test_generate_random_signal(generator):
     
     # Check output type and shape
     assert isinstance(signal, torch.Tensor)
-    assert signal.shape == (1, *generator.output_shape), f"Expected shape (1, {generator.output_shape}), got {signal.shape}"
+    assert signal.shape == (1, 1, *generator.output_shape), f"Expected shape (1, 1, {generator.output_shape}), got {signal.shape}"
     # Check values are within Hardsigmoid range [0, 1]
     assert torch.all(signal >= 0) and torch.all(signal <= 1), "Signal values should be in [0, 1]"
 
@@ -34,7 +42,7 @@ def test_get_fft_loc_coherences(generator):
     device = 'cpu'
     loc_co = get_fft_loc_coherences(generator, num_samples=num_samples, device=device)
     
-    # Check output type and shape
+    # Check output type and shape - get_fft_loc_coherences now removes the channel dimension
     assert loc_co.shape == generator.output_shape, f"Expected shape {generator.output_shape}, got {loc_co.shape}"
     # Check non-negative values (FFT magnitude)
     assert np.all(loc_co >= 0), "Local coherences should be non-negative"
@@ -67,12 +75,12 @@ def test_recover_signal(generator):
     
     # Generate a true signal and measurements
     true_signal = generate_random_signal(generator, latent_dim)
-    b = A(true_signal)
+    b = A(true_signal)  # CSMeasurementMatrix now handles the channel dimension
     
-    # Recover signal
-    recovered_signal = recover_signal(generator, A, b, latent_dim, lr=0.01, num_iterations=10, batch_size=2)
+    # Recover signal with lower iterations for test
+    recovered_signal, _, _ = recover_signal(generator, A, b, latent_dim, lr=0.01, num_iterations=10, batch_size=2)
     
-    # Check output type and shape
+    # Check output type and shape - recover_signal will remove channel dimension
     assert isinstance(recovered_signal, torch.Tensor)
     assert recovered_signal.shape == signal_shape, f"Expected shape {signal_shape}, got {recovered_signal.shape}"
     # Check values are within Hardsigmoid range [0, 1]

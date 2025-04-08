@@ -9,42 +9,12 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.sparse.linalg import LinearOperator
 from typing import Tuple, Callable
+import pickle
+import os
+from .train_model import Generator, ConvVAE
 
 # Import relevant functions from your sampling_recov_functions.py
 from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, sample_CS_matrix
-
-
-class Generator(nn.Module):
-    """
-    A fully connected generative neural network for compressed sensing.
-    Maps a latent Gaussian vector to a signal in the spatial domain.
-    """
-    k: int
-    output_shape: Tuple
-
-    def __init__(self, latent_dim: int, output_shape: Tuple, hidden_dims: list = [256, 512, 1024]):
-        super(Generator, self).__init__()
-        self.k = latent_dim
-        self.output_shape = output_shape
-        layers = []
-        prev_dim = latent_dim
-
-        # Build the network with hidden layers
-        for h_dim in hidden_dims:
-            layers.append(nn.Linear(prev_dim, h_dim))
-            layers.append(nn.ReLU())
-            prev_dim = h_dim
-
-        # Output layer (direct signal, no wavelet transform)
-        layers.append(nn.Linear(prev_dim, np.prod(output_shape).item()))
-        layers.append(nn.Hardsigmoid())
-        layers.append(nn.Unflatten(1, output_shape))
-        # No activation on output to allow any real-valued signal
-
-        self.network = nn.Sequential(*layers)
-
-    def forward(self, z: torch.Tensor) -> torch.Tensor:
-        return self.network(z)
 
 
 def generate_random_signal(generator: Generator, latent_dim: int, device: str = 'cpu') -> torch.Tensor:
@@ -69,7 +39,10 @@ def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
     """
     with torch.no_grad():
         codes = torch.randn(num_samples, generator.k).to(device)
-        outputs = generator(codes)  # Shape: (num_samples, 28, 28)
+        outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
+        # Remove channel dimension (new Generator outputs shape [batch, 1, H, W])
+        outputs = outputs.squeeze(1)  # Shape: (num_samples, 28, 28)
+            
         outputs_i = outputs.unsqueeze(1)  # (num_samples, 1, 28, 28)
         outputs_j = outputs.unsqueeze(0)  # (1, num_samples, 28, 28)
         # (num_samples, num_samples, 28, 28)
@@ -131,16 +104,21 @@ class CSMeasurementMatrix(nn.Module):
         Apply the measurement matrix to the input signal.
 
         Args:
-            x: Input tensor of shape (batch, height, width), e.g., (batch, 28, 28)
+            x: Input tensor of shape (batch, channel, height, width), e.g., (batch, 1, 28, 28)
 
         Returns:
             measurements: Tensor of shape (batch, m_tld) with complex values
         """
         batch_size = x.size(0)
 
-        # Ensure input matches expected shape
-        assert x.shape[1:
-                       ] == self.signal_shape, f"Input shape {x.shape[1:]} must match {self.signal_shape}"
+        # Handle case with channel dimension (new Generator output)
+        if len(x.shape) == 4:  # (batch, channel, height, width)
+            assert x.shape[2:] == self.signal_shape, f"Input shape {x.shape[2:]} must match {self.signal_shape}"
+            # Use only the first channel for FFT
+            x = x.squeeze(1)  # (batch, height, width)
+        else:  # Original case (batch, height, width)
+            assert x.shape[1:] == self.signal_shape, f"Input shape {x.shape[1:]} must match {self.signal_shape}"
+        
         # (batch, height, width), complex
         x_fft = torch.fft.fft2(x, norm="ortho")
         # (batch, n), e.g., (batch, 784)
@@ -205,17 +183,21 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         loss = torch.sum(offset.real**2 + offset.imag**2, dim=1, keepdim=False)
         best = torch.argmax(loss)
         smallest_loss = torch.max(loss).item()
-        recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(
-            0)  # Shape: (height, width), e.g., (28, 28)
+        # Get recovered signal and remove channel dimension if present
+        recovered = generator(z[best, :].unsqueeze(0))  # Shape: (1, 1, height, width)
+        if recovered.dim() == 4:
+            recovered_signal = recovered.squeeze(0).squeeze(0)  # Shape: (height, width)
+        else:
+            recovered_signal = recovered.squeeze(0)  # Shape: (height, width)
 
     return recovered_signal, np.array(losses), smallest_loss
 
 
 def make_df():
-    sqt_n = 32  # Fixed image size, matching sparse experiment
+    sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
         'm': logspace(2, sqt_n**2*2, 8, integer=True),  # Number of measurements
-        'k': [16],  # Latent dimension (analogous to sparsity level)
+        'k': [8],  # Latent dimension (analogous to sparsity level)
         'sigma': [0.0, 0.0001, 0.05, 0.2, 0.5],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
@@ -229,10 +211,11 @@ def make_df():
         'opt_tol_stop': [2e-3],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
+        'model_type': "trained"
     })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 100)
+    df = repeat(df, 3)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
@@ -264,7 +247,8 @@ def make_df():
         'emp_snr': float, 'preconditionned_optimization': bool,
         "opt_tol_stop": float,
         "beta1":float,
-        "beta2":float
+        "beta2":float,
+        'model_type': str
     }
     # Apply type casting
     df = soft_astype_df(df, ExperimentTypes)
@@ -330,9 +314,18 @@ def experiment(data: dict) -> dict[str, Any]:
     n = sqt_n**2
     m = data['m']
     device = "cpu"
-
-    generator = Generator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
-    # Override n because the wavelet transform may change it slightly.
+    if data['model_type'] == "random":
+        generator = Generator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
+    elif data['model_type']== "trained":
+        proj_path = os.getenv("PROJECT")
+        if proj_path == None:
+            raise Exception("PROJECT env var was not set.")
+        model = ConvVAE()
+        model.load_state_dict(torch.load(os.path.join(proj_path, "models/model_weights.pth")))
+        generator = model.decoder
+    else:
+        raise ValueError("model_type can only be 'random' or 'trained'")
+    # Override n because the wavelet transform may change it slightly
     loc_co = get_fft_loc_coherences(generator)
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
@@ -380,3 +373,10 @@ def experiment(data: dict) -> dict[str, Any]:
     if 'save_opt_data' in data and data['save_opt_data']:
         return_dict['opt_data'] = opt_data
     return return_dict
+
+def test_generator_output_shape():
+    gen = Generator(k=8, output_shape=(28, 28))
+    z = torch.randn(1, 8)
+    output = gen(z)
+    assert output.shape == (1, 1, 28, 28), f"Expected shape (1, 1, 28, 28), got {output.shape}"
+    print("Generator output shape test passed.")
