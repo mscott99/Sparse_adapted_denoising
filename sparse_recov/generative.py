@@ -135,7 +135,7 @@ class CSMeasurementMatrix(nn.Module):
 
 def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor,
                    k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop=1e-7,
-                   device: str = 'cpu', beta1 = 0.9, beta2 = 0.999) -> Tuple[torch.Tensor, NDArray, float]:
+                   device: str = 'cpu', beta1 = 0.9, beta2 = 0.999, true_signal = None) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -163,6 +163,9 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
     z = torch.randn(batch_size, k, requires_grad=True, device=device)
     optimizer = optim.Adam([z], lr=lr, betas = (beta1, beta2))
     losses = []
+    test_losses = []
+    true_signal = torch.tensor(true_signal)
+    true_sig_norm = torch.norm(true_signal)
     # Optimization loop
     for _ in range(num_iterations):
         optimizer.zero_grad()
@@ -170,6 +173,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         offset = A(x_tensor) - b
         loss = torch.sum(offset.real**2 + offset.imag**2)
         losses.append(loss.detach().numpy())
+        test_losses.append((torch.norm(x_tensor - true_signal)/true_sig_norm).item())
         if loss < tol_stop:
             break
         # Backpropagate and update z
@@ -190,7 +194,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         else:
             recovered_signal = recovered.squeeze(0)  # Shape: (height, width)
 
-    return recovered_signal, np.array(losses), smallest_loss
+    return recovered_signal, np.array(losses), np.array(test_losses), smallest_loss
 
 
 def make_df():
@@ -215,7 +219,7 @@ def make_df():
     })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 30)
+    df = repeat(df, 10)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
@@ -351,8 +355,8 @@ def experiment(data: dict) -> dict[str, Any]:
         A = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n), False)
         b_opt = b
 
-    x_hat, opt_data, smallest_loss = recover_signal(
-        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device, beta1 = data["beta1"], beta2 = data["beta2"])
+    x_hat, opt_data, test_losses, smallest_loss = recover_signal(
+        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device, beta1 = data["beta1"], beta2 = data["beta2"], true_signal = true_signal)
 
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
@@ -372,6 +376,7 @@ def experiment(data: dict) -> dict[str, Any]:
         return_dict['indices'] = indices
     if 'save_opt_data' in data and data['save_opt_data']:
         return_dict['opt_data'] = opt_data
+        return_dict['test_losses'] = test_losses
     return return_dict
 
 def test_generator_output_shape():

@@ -67,7 +67,7 @@ def perform_log_least_squares_fit(df, x_col, y_col, group_cols, min_x=None):
 
 def add_log_fit_line_to_plot(subplot_fits, ax,
                           line_style='--',
-                          alpha=0.5,
+                          alpha=1.0,
                           color='red',
                           annotate_slopes=True,
                           slope_precision=2,
