@@ -202,24 +202,42 @@ def make_df():
     df = allcombinations({
         'm': logspace(2, sqt_n**2*3, 8, integer=True),  # Number of measurements
         'k': [8],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.2, 0.5, 1.0, 5.0],  # Noise levels
+        'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
         'sampling_dist_type': ['optimized', "robust", "uniform", "Ber"],
         'preconditionned_optimization': [True, False],  # Preconditioning option
-        'lr': [0.1],  # Learning rate for optimization
-        'beta1': [0.8],
+        'lr': [0.1, 0.01, 0.001],  # Learning rate for optimization
+        'beta1': [0.8, 0.9],
         'beta2': [0.999],
-        'max_iter': [300],  # 15000 more than enough for MNIST recovery.
-        'opt_tol_stop': [1e-3],
+        'max_iter': [500],  # 15000 more than enough for MNIST recovery.
+        'opt_tol_stop': [1e-4],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
         'model_type': "trained"
     })
+    # df = allcombinations({
+    #     'm': logspace(2, sqt_n**2*3, 8, integer=True),  # Number of measurements
+    #     'k': [8],  # Latent dimension (analogous to sparsity level)
+    #     'sigma': [0.0, 0.01, 0.2, 0.5, 1.0, 5.0],  # Noise levels
+    #     # Weighted random sampling (fixed as in generative.py)
+    #     'sampling_type': 'wr',
+    #     # Sampling distribution types
+    #     'sampling_dist_type': ['optimized', "robust", "uniform", "Ber"],
+    #     'preconditionned_optimization': [True, False],  # Preconditioning option
+    #     'lr': [0.1],  # Learning rate for optimization
+    #     'beta1': [0.8],
+    #     'beta2': [0.999],
+    #     'max_iter': [300],  # 15000 more than enough for MNIST recovery.
+    #     'opt_tol_stop': [1e-3],
+    #     # Number of optimization repeats (batch size in recover_signal)
+    #     'num_repeats_in_optim': [1],
+    #     'model_type': "trained"
+    # })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 300)
+    df = repeat(df, 100)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
