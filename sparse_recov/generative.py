@@ -202,16 +202,16 @@ def make_df():
     df = allcombinations({
         'm': logspace(2, sqt_n**2*3, 8, integer=True),  # Number of measurements
         'k': [8],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0],  # Noise levels
+        'sigma': [0.0, 0.01, 0.1, 0.5, 2.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['optimized'],
-        'preconditionned_optimization': [True],  # Preconditioning option
-        'lr': [0.1, 0.01, 0.001],  # Learning rate for optimization
+        'sampling_dist_type': ['optimized', "robust", "uniform"],
+        'preconditionned_optimization': [True, False],  # Preconditioning option
+        'lr': [0.01],  # Learning rate for optimization
         'beta1': [0.8],
-        'beta2': [0.999],
-        'max_iter': [40000],  # 15000 more than enough for MNIST recovery.
+        'beta2': [0.995],
+        'max_iter': [1000],  # 15000 more than enough for MNIST recovery.
         'opt_tol_stop': [1e-4],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
@@ -238,7 +238,7 @@ def make_df():
     # })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 3)
+    df = repeat(df, 40)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
