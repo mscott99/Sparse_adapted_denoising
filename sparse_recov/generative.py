@@ -2,7 +2,7 @@ import torch
 from utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from time import time
 import pandas as pd
-from typing import TypedDict, Literal, Any, Tuple, List, Optional
+from typing import TypedDict, Literal, Any, Tuple, List, Optional, Union
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
@@ -134,7 +134,7 @@ class CSMeasurementMatrix(nn.Module):
 
 
 def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop=1e-7,
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop:Optional[float]=1e-7,
                    device: str = 'cpu', beta1 = 0.9, beta2 = 0.999, true_signal = None) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
@@ -174,7 +174,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         loss = torch.sum(offset.real**2 + offset.imag**2)
         losses.append(loss.detach().numpy())
         test_losses.append((torch.norm(x_tensor - true_signal)/true_sig_norm).item())
-        if loss < tol_stop:
+        if tol_stop != None and loss < tol_stop:
             break
         # Backpropagate and update z
         loss.backward()
@@ -202,17 +202,17 @@ def make_df():
     df = allcombinations({
         'm': logspace(2, sqt_n**2*3, 4, integer=True),  # Number of measurements
         'k': [8],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.01],  # Noise levels
+        'sigma': [0.0, 0.002, 0.01],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['optimized', "robust", "uniform"],
-        'preconditionned_optimization': [True, False],  # Preconditioning option
+        'sampling_dist_type': ['optimized'],
+        'preconditionned_optimization': [True],  # Preconditioning option
         'lr': [0.01, 0.001],  # Learning rate for optimization
-        'beta1': [0.8, 0.9],
-        'beta2': [0.995, 0.999],
+        'beta1': [0.9],
+        'beta2': [0.999],
         'max_iter': [10000],  # 15000 more than enough for MNIST recovery.
-        'opt_tol_stop': [1e-4],
+        'opt_tol_stop': [None],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
         'model_type': "trained"
