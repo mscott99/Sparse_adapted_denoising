@@ -202,7 +202,7 @@ def make_df():
     df = allcombinations({
         'm': logspace(2, sqt_n**2*3, 4, integer=True),  # Number of measurements
         'k': [8],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.001],  # Noise levels
+        'sigma': [0.01],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
