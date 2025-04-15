@@ -200,19 +200,19 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
-        'm': logspace(2, sqt_n**2*3, 4, integer=True),  # Number of measurements
+        'm': logspace(2, sqt_n**2*3, 8, integer=True),  # Number of measurements
         'k': [8],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.002, 0.01],  # Noise levels
+        'sigma': [0.0, 0.01, 0.1, 1.0, 5.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['optimized'],
-        'preconditionned_optimization': [True],  # Preconditioning option
-        'lr': [0.1, 0.01, 0.001],  # Learning rate for optimization
+        'sampling_dist_type': ['optimized', 'robust'],
+        'preconditionned_optimization': [True, False],  # Preconditioning option
+        'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
         'max_iter': [1000],  # 15000 more than enough for MNIST recovery.
-        'opt_tol_stop': [1e-4],
+        'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
         'model_type': "trained"
@@ -238,7 +238,7 @@ def make_df():
     # })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 40)
+    df = repeat(df, 400)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
