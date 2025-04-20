@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from sparse_recov.generative import Generator, generate_random_signal, get_fft_loc_coherences, CSMeasurementMatrix, recover_signal, make_df, experiment, sample_CS_matrix
 from sparse_recov.train_model import ConvVAE
+from sparse_recov.sampling_recov_functions import half_robust
 
 # Fixture for a simple generator
 
@@ -19,6 +20,31 @@ def test_experiment():
     first_row = df.loc[0]
     first_row['max_iter'] = 2
     experiment({**df.attrs, **first_row})  # test for runtime errors
+
+
+def test_half_robust():
+    """Test the half_robust function on a simple flattened coherence vector"""
+    # Simple flattened coherence vector with values between 0 and 1
+    loc_co = np.array([1.0, 0.5, 0.25, 0.125])
+
+    # Get half-robust distribution
+    p = half_robust(loc_co)
+
+    # Calculate expected probabilities
+    uniform_p = np.ones_like(loc_co) / len(loc_co)
+    optimized_p = loc_co**2 / np.sum(loc_co**2)
+
+    # Test if it's a probability distribution
+    assert np.abs(np.sum(p) - 1.0) < 1e-10, "Does not sum to 1"
+    assert np.all(p >= 0), "Contains negative probabilities"
+
+    # Test edge case with zero coherence
+    loc_co_zero = np.array([1.0, 0.5, 0.0, 0.0])
+    p_zero = half_robust(loc_co_zero)
+    assert np.all(
+        p_zero >= 0), "Contains negative probabilities with zero coherence"
+    assert np.abs(np.sum(p_zero) -
+                  1.0) < 1e-10, "Does not sum to 1 with zero coherence"
 
 
 def test_generator_integration():

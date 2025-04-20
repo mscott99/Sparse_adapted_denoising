@@ -6,6 +6,7 @@ from typing import Tuple, Callable
 import pandas as pd
 from scipy.sparse.linalg import LinearOperator
 
+
 def S_transpose(indices, m, m_tld, n):
     return np.sqrt(n/m) * sparse.coo_matrix(
         (np.ones(indices.shape[0]), (indices, range(m_tld))), shape=(n, m_tld))
@@ -42,6 +43,7 @@ def wr_prob_vec(loc_co):
 #     p[perm] = p
 #     return p/ np.sum(p)
 
+
 def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
     pos_co = loc_co[loc_co > 0]
     n = pos_co.size
@@ -70,36 +72,54 @@ def SF2_func(indices: NDArray, m, n):
 def SDF2_func(indices, m, n, d):
     return lambda x: np.sqrt(n/m) * (d*fft2(x, norm="ortho").flat)[indices]
 
+
+def half_robust(flat_co):
+    n= len(flat_co)
+    p = flat_co**2/np.sum(flat_co**2)
+    p_first = p[:int(n/2)]
+    tot_second = np.sum(p[int(n/2):])
+    prev_tot_second = np.sum(flat_co[int(n/2):])
+    if prev_tot_second==0:
+        p_second= np.zeros_like(flat_co[int(n/2):])
+    else:
+        p_second = flat_co[int(n/2):]*tot_second/prev_tot_second 
+    return np.concatenate((p_first, p_second), axis=0)
+
+
 def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
-        d = np.array([])
-        flat_co = loc_co.ravel()
-        n = len(flat_co)
-        if sampling_type == "wr":
-            if sampling_dist_type=="robust":
-                p = flat_co/ np.sum(flat_co)
-            elif sampling_dist_type=="optimized":
-                p = flat_co**2/np.sum(flat_co**2)
-            elif sampling_dist_type =="uniform":
-                p = np.repeat(1/n, n)
-            else:
-                raise NotImplementedError("Sampling scheme "+ sampling_dist_type+" not implemented")
-            d = np.zeros_like(p)
-            d[p > 0] = 1/np.sqrt(n * p[p > 0])
-            indices = np.random.choice(n, m, replace=True, p=p)
-        elif sampling_type == "Ber":
-            assert m <= n, "Bernoulli sampling requires m less than n"
-            if sampling_dist_type == "optimized":
-                weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
-                d = np.zeros_like(weights)
-                d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
-            elif sampling_dist_type == "uniform":
-                weights = m/n
-            else:
-                raise NotImplementedError()
-            indices = np.where(np.random.rand(n) < weights)[0]
+    d = np.array([])
+    flat_co = loc_co.ravel()
+    n = len(flat_co)
+    if sampling_type == "wr":
+        if sampling_dist_type == "robust":
+            p = flat_co / np.sum(flat_co)
+        elif sampling_dist_type == "half_robust":
+            p = half_robust(flat_co)
+        elif sampling_dist_type == "optimized":
+            p = flat_co**2/np.sum(flat_co**2)
+        elif sampling_dist_type == "uniform":
+            p = np.repeat(1/n, n)
+        else:
+            raise NotImplementedError(
+                "Sampling scheme " + sampling_dist_type+" not implemented")
+        d = np.zeros_like(p)
+        d[p > 0] = 1/np.sqrt(n * p[p > 0])
+        indices = np.random.choice(n, m, replace=True, p=p)
+    elif sampling_type == "Ber":
+        assert m <= n, "Bernoulli sampling requires m less than n"
+        if sampling_dist_type == "optimized":
+            weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
+            d = np.zeros_like(weights)
+            d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
+        elif sampling_dist_type == "uniform":
+            weights = m/n
         else:
             raise NotImplementedError()
-        return (indices, d)
+        indices = np.where(np.random.rand(n) < weights)[0]
+    else:
+        raise NotImplementedError()
+    return (indices, d)
+
 
 def soft_threshold(x, lambda_):
     """Soft thresholding operator"""
@@ -109,10 +129,10 @@ def soft_threshold(x, lambda_):
 class WaveletPartialFourier(LinearOperator):
     """
     LinearOperator that implements the wavelet-partial Fourier transform.
-    
+
     This class properly implements the _matvec and _rmatvec methods as required
     by the LinearOperator interface.
-    
+
     Parameters:
     -----------
     idx : array-like
@@ -124,17 +144,18 @@ class WaveletPartialFourier(LinearOperator):
     rmatmul : Callable
         Function that implements the adjoint transform
     """
+
     def __init__(self, idx, n, matmul: Callable, rmatmul: Callable):
         self.idx = idx
         self.shape = (len(idx), n)
         self.dtype = np.complex64
         self._matmul = matmul
         self._rmatmul = rmatmul
-        
+
     def _matvec(self, x):
         """Implementation of the matrix-vector product."""
         return self._matmul(x)
-    
+
     def _rmatvec(self, x):
         """Implementation of the adjoint matrix-vector product."""
         return self._rmatmul(x)

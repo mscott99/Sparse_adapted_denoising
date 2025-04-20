@@ -206,7 +206,7 @@ def make_df():
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['optimized', 'robust'],
+        'sampling_dist_type': ['half_robust'],
         'preconditionned_optimization': [True, False],  # Preconditioning option
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
@@ -266,7 +266,7 @@ def make_df():
         'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
         'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
         'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
-        'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
+        'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
         'emp_snr': float, 'preconditionned_optimization': bool,
         "opt_tol_stop": float,
         "beta1":float,
