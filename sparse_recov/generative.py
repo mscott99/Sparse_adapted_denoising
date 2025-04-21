@@ -132,8 +132,8 @@ class preconditionnedCSMeasurementMatrix(nn.Module):
         return self.dtld * self.SF.forward(x)
 
 
-def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix,preconditionnedCSMeasurementMatrix], b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device = torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
+def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, preconditionnedCSMeasurementMatrix], b: torch.Tensor,
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -370,8 +370,8 @@ def experiment(data: dict) -> dict[str, Any]:
         1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
     b = signal + noise
 
-    SDF=SF
-    btld=b
+    SDF = SF
+    btld = b
     if data['preconditionned_optimization']:
         if data['sampling_type'] == 'Ber':
             raise NotImplementedError(
@@ -385,6 +385,7 @@ def experiment(data: dict) -> dict[str, Any]:
 
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
+    noise = noise.cpu().numpy()
     # Return relevant data.
     if data['sigma'] == 0:
         emp_snr = np.inf
@@ -393,8 +394,8 @@ def experiment(data: dict) -> dict[str, Any]:
     # optim_info = {'resid': resid, 'grad': grad, 'info': info}
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
-    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "uneven_on_exactly_sparse",
-                   "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal), "smallest_loss": smallest_loss}
+    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "uneven_on_exactly_sparse", "m_tld": m_tld,
+                   'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal), "smallest_loss": smallest_loss}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
