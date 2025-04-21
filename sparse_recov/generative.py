@@ -196,6 +196,17 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 
     return recovered_signal, np.array(losses), np.array(test_losses), smallest_loss
 
+ExperimentTypes = {
+        'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
+        'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
+        'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
+        'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
+        'emp_snr': float, 'preconditionned_optimization': bool,
+        "opt_tol_stop": float,
+        "beta1":float,
+        "beta2":float,
+        'model_type': str
+    }
 
 def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
@@ -262,17 +273,7 @@ def make_df():
     })
     add_standard_attributes(df)
     # Define experiment types for type consistency (adapted from sparse case)
-    ExperimentTypes = {
-        'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
-        'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
-        'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
-        'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
-        'emp_snr': float, 'preconditionned_optimization': bool,
-        "opt_tol_stop": float,
-        "beta1":float,
-        "beta2":float,
-        'model_type': str
-    }
+    
     # Apply type casting
     df = soft_astype_df(df, ExperimentTypes)
     return df
