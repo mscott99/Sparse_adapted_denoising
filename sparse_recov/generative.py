@@ -385,17 +385,18 @@ def experiment(data: dict) -> dict[str, Any]:
 
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
-    noise = noise.cpu().numpy()
     # Return relevant data.
+    signal_mag = np.linalg.norm(signal.cpu().numpy())
+    noise_mag = np.linalg.norm(noise.cpu().numpy())
     if data['sigma'] == 0:
         emp_snr = np.inf
     else:
-        emp_snr = np.linalg.norm(signal)/np.linalg.norm(noise)
+        emp_snr = signal_mag / noise_mag
     # optim_info = {'resid': resid, 'grad': grad, 'info': info}
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
     return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "uneven_on_exactly_sparse", "m_tld": m_tld,
-                   'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal), "smallest_loss": smallest_loss}
+                   'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
