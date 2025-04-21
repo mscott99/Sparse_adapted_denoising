@@ -258,7 +258,7 @@ def make_df():
     # })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 400)
+    df = repeat(df, 2)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
