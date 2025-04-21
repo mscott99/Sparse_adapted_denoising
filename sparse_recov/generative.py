@@ -220,7 +220,7 @@ def make_df():
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['half_robust'],
+        'sampling_dist_type': ['optimized','robust','half_robust'],
         # Preconditioning option
         'preconditionned_optimization': [True, False],
         'lr': [0.03],  # Learning rate for optimization
@@ -253,7 +253,7 @@ def make_df():
     # })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 2)
+    df = repeat(df, 100)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
