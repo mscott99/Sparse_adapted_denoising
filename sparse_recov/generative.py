@@ -42,7 +42,7 @@ def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
         outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
         # Remove channel dimension (new Generator outputs shape [batch, 1, H, W])
         outputs = outputs.squeeze(1)  # Shape: (num_samples, 28, 28)
-            
+
         outputs_i = outputs.unsqueeze(1)  # (num_samples, 1, 28, 28)
         outputs_j = outputs.unsqueeze(0)  # (1, num_samples, 28, 28)
         # (num_samples, num_samples, 28, 28)
@@ -113,12 +113,14 @@ class CSMeasurementMatrix(nn.Module):
 
         # Handle case with channel dimension (new Generator output)
         if len(x.shape) == 4:  # (batch, channel, height, width)
-            assert x.shape[2:] == self.signal_shape, f"Input shape {x.shape[2:]} must match {self.signal_shape}"
+            assert x.shape[2:
+                           ] == self.signal_shape, f"Input shape {x.shape[2:]} must match {self.signal_shape}"
             # Use only the first channel for FFT
             x = x.squeeze(1)  # (batch, height, width)
         else:  # Original case (batch, height, width)
-            assert x.shape[1:] == self.signal_shape, f"Input shape {x.shape[1:]} must match {self.signal_shape}"
-        
+            assert x.shape[1:
+                           ] == self.signal_shape, f"Input shape {x.shape[1:]} must match {self.signal_shape}"
+
         # (batch, height, width), complex
         x_fft = torch.fft.fft2(x, norm="ortho")
         # (batch, n), e.g., (batch, 784)
@@ -134,8 +136,8 @@ class CSMeasurementMatrix(nn.Module):
 
 
 def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop:Optional[float]=1e-7,
-                   device: str = 'cpu', beta1 = 0.9, beta2 = 0.999, true_signal = None) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7,
+                   device: str = 'cpu', beta1=0.9, beta2=0.999, true_signal=None) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -161,7 +163,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
 
     # Initialize latent vector z from N(0,1) as a trainable parameter
     z = torch.randn(batch_size, k, requires_grad=True, device=device)
-    optimizer = optim.Adam([z], lr=lr, betas = (beta1, beta2))
+    optimizer = optim.Adam([z], lr=lr, betas=(beta1, beta2))
     losses = []
     test_losses = []
     true_signal = torch.tensor(true_signal)
@@ -173,7 +175,8 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         offset = A(x_tensor) - b
         loss = torch.sum(offset.real**2 + offset.imag**2)
         losses.append(loss.detach().numpy())
-        test_losses.append((torch.norm(x_tensor - true_signal)/true_sig_norm).item())
+        test_losses.append(
+            (torch.norm(x_tensor - true_signal)/true_sig_norm).item())
         if tol_stop != None and loss < tol_stop:
             break
         # Backpropagate and update z
@@ -188,37 +191,43 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         best = torch.argmax(loss)
         smallest_loss = torch.max(loss).item()
         # Get recovered signal and remove channel dimension if present
-        recovered = generator(z[best, :].unsqueeze(0))  # Shape: (1, 1, height, width)
+        # Shape: (1, 1, height, width)
+        recovered = generator(z[best, :].unsqueeze(0))
         if recovered.dim() == 4:
-            recovered_signal = recovered.squeeze(0).squeeze(0)  # Shape: (height, width)
+            recovered_signal = recovered.squeeze(
+                0).squeeze(0)  # Shape: (height, width)
         else:
             recovered_signal = recovered.squeeze(0)  # Shape: (height, width)
 
     return recovered_signal, np.array(losses), np.array(test_losses), smallest_loss
 
+
 ExperimentTypes = {
-        'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
-        'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
-        'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
-        'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
-        'emp_snr': float, 'preconditionned_optimization': bool,
-        "opt_tol_stop": float,
-        "beta1":float,
-        "beta2":float,
-        'model_type': str
-    }
+    'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
+    'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
+    'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
+    'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
+    'emp_snr': float, 'preconditionned_optimization': bool,
+    "opt_tol_stop": float,
+    "beta1": float,
+    "beta2": float,
+    'model_type': str
+}
+
 
 def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
-        'm': logspace(2, sqt_n**2*3, 8, integer=True),  # Number of measurements
+        # Number of measurements
+        'm': logspace(2, sqt_n**2*3, 8, integer=True),
         'k': [8],  # Latent dimension (analogous to sparsity level)
         'sigma': [0.0, 0.01, 0.1, 1.0, 5.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
         'sampling_dist_type': ['half_robust'],
-        'preconditionned_optimization': [True, False],  # Preconditioning option
+        # Preconditioning option
+        'preconditionned_optimization': [True, False],
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
@@ -273,7 +282,7 @@ def make_df():
     })
     add_standard_attributes(df)
     # Define experiment types for type consistency (adapted from sparse case)
-    
+
     # Apply type casting
     df = soft_astype_df(df, ExperimentTypes)
     return df
@@ -337,15 +346,16 @@ def experiment(data: dict) -> dict[str, Any]:
     sqt_n = int(data['sqt_n'])
     n = sqt_n**2
     m = data['m']
-    device = "cpu"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if data['model_type'] == "random":
         generator = Generator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
-    elif data['model_type']== "trained":
+    elif data['model_type'] == "trained":
         proj_path = os.getenv("PROJECT")
         if proj_path == None:
             raise Exception("PROJECT env var was not set.")
         model = ConvVAE()
-        model.load_state_dict(torch.load(os.path.join(proj_path, "models/model_weights.pth")))
+        model.load_state_dict(torch.load(os.path.join(
+            proj_path, "models/model_weights.pth")))
         generator = model.decoder
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
@@ -376,7 +386,7 @@ def experiment(data: dict) -> dict[str, Any]:
         b_opt = b
 
     x_hat, opt_data, test_losses, smallest_loss = recover_signal(
-        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device, beta1 = data["beta1"], beta2 = data["beta2"], true_signal = true_signal)
+        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device, beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal)
 
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
@@ -399,9 +409,11 @@ def experiment(data: dict) -> dict[str, Any]:
         return_dict['test_losses'] = test_losses
     return return_dict
 
+
 def test_generator_output_shape():
     gen = Generator(k=8, output_shape=(28, 28))
     z = torch.randn(1, 8)
     output = gen(z)
-    assert output.shape == (1, 1, 28, 28), f"Expected shape (1, 1, 28, 28), got {output.shape}"
+    assert output.shape == (
+        1, 1, 28, 28), f"Expected shape (1, 1, 28, 28), got {output.shape}"
     print("Generator output shape test passed.")
