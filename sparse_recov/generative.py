@@ -214,9 +214,9 @@ def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': logspace(2, sqt_n**2*3, 8, integer=True),
+        'm': logspace(2, sqt_n**2*3, 5, integer=True),
         'k': [8],  # Latent dimension (analogous to sparsity level)
-        'sigma': [0.0, 0.01, 0.1, 1.0, 5.0],  # Noise levels
+        'sigma': 0.1,  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
@@ -253,7 +253,7 @@ def make_df():
     # })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 100)
+    df = repeat(df, 500)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
