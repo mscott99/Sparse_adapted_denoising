@@ -76,25 +76,15 @@ class CSMeasurementMatrix(nn.Module):
         d: Optional preconditioning weights (default None)
     """
 
-    def __init__(self, indices, m: int, signal_shape: Tuple, preconditioned: bool = False, d: Optional[torch.Tensor] = None):
+    def __init__(self, indices, m: int, signal_shape: Tuple, ):
         super(CSMeasurementMatrix, self).__init__()
         self.m = m  # Desired number of measurements
         self.signal_shape = signal_shape  # Signal dimension
-        self.preconditioned = preconditioned
         indices = torch.tensor(indices)
         self.register_buffer('indices', indices.long())
         self.m_tld = indices.size(0)  # Actual number of measurements
         n = np.prod(signal_shape)
         # Preconditioning weights (if applicable)
-        if preconditioned:
-            if d is None:
-                raise ValueError(
-                    "Preconditioning requires d (weights) to be provided")
-            if d.shape != (n,):
-                raise ValueError(f"d must have shape ({n},), got {d.shape}")
-            self.register_buffer('d', d)
-        else:
-            self.d = None
 
         # Scaling factor for normalization (consistent with SF2_func)
         self.scale = torch.sqrt(torch.tensor(n / m, dtype=torch.float32))
@@ -129,15 +119,21 @@ class CSMeasurementMatrix(nn.Module):
         measurements = self.scale * \
             x_fft_flat[:, self.indices]  # (batch, m_tld)
         # Apply preconditioning if enabled
-        if self.preconditioned and self.d != None:
-            measurements = self.d[self.indices] * \
-                measurements  # Element-wise multiplication
         return measurements
 
 
-def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7,
-                   device: str = 'cpu', beta1=0.9, beta2=0.999, true_signal=None) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
+class preconditionnedCSMeasurementMatrix(nn.Module):
+    def __init__(self, SF: CSMeasurementMatrix, dtld: torch.Tensor):
+        super(preconditionnedCSMeasurementMatrix, self).__init__()
+        self.SF = SF
+        self.dtld = dtld
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.dtld * self.SF.forward(x)
+
+
+def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix,preconditionnedCSMeasurementMatrix], b: torch.Tensor,
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device = torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -148,7 +144,6 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         latent_dim: Dimension of the latent space (generator.k)
         lr: Learning rate for optimization (default 0.01)
         num_iterations: Number of optimization iterations (default 1000)
-        device: Device to run the optimization on ('cpu' or 'cuda')
 
     Returns:
         recovered_signal: Recovered signal as a numpy array (e.g., 28x28)
@@ -174,7 +169,7 @@ def recover_signal(generator: Generator, A: CSMeasurementMatrix, b: torch.Tensor
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
         loss = torch.sum(offset.real**2 + offset.imag**2)
-        losses.append(loss.detach().numpy())
+        losses.append(loss.detach().cpu().numpy())
         test_losses.append(
             (torch.norm(x_tensor - true_signal)/true_sig_norm).item())
         if tol_stop != None and loss < tol_stop:
@@ -366,27 +361,27 @@ def experiment(data: dict) -> dict[str, Any]:
     d = torch.tensor(d).to(device)
     m_tld = indices.size
 
-    true_signal = generate_random_signal(generator, data['k'])
+    true_signal = generate_random_signal(generator, data['k']).to(device)
 
     # Signal acquisition
-    SF = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n), False)
+    SF = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n)).to(device)
     signal = SF(true_signal)
     noise = torch.tensor(
         1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
     b = signal + noise
 
+    SDF=SF
+    btld=b
     if data['preconditionned_optimization']:
         if data['sampling_type'] == 'Ber':
             raise NotImplementedError(
                 "Bernoulli sampling with preconditionned opt not implemented")
-        A = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n), True, d)
-        b_opt = d[indices]*b
-    else:
-        A = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n), False)
-        b_opt = b
+        dtld = d[indices]
+        SDF = preconditionnedCSMeasurementMatrix(SF, dtld)
+        btld = dtld*b
 
     x_hat, opt_data, test_losses, smallest_loss = recover_signal(
-        generator, A, b_opt, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], device=device, beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal)
+        generator, SDF, btld, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
 
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
