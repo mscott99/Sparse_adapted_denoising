@@ -122,9 +122,9 @@ class CSMeasurementMatrix(nn.Module):
         return measurements
 
 
-class preconditionnedCSMeasurementMatrix(nn.Module):
+class preconditionedCSMeasurementMatrix(nn.Module):
     def __init__(self, SF: CSMeasurementMatrix, dtld: torch.Tensor):
-        super(preconditionnedCSMeasurementMatrix, self).__init__()
+        super(preconditionedCSMeasurementMatrix, self).__init__()
         self.SF = SF
         self.dtld = dtld
 
@@ -132,7 +132,7 @@ class preconditionnedCSMeasurementMatrix(nn.Module):
         return self.dtld * self.SF.forward(x)
 
 
-def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, preconditionnedCSMeasurementMatrix], b: torch.Tensor,
+def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, preconditionedCSMeasurementMatrix], b: torch.Tensor,
                    k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
@@ -161,7 +161,7 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
     optimizer = optim.Adam([z], lr=lr, betas=(beta1, beta2))
     losses = []
     test_losses = []
-    true_signal = torch.tensor(true_signal)
+    true_signal = true_signal
     true_sig_norm = torch.norm(true_signal)
     # Optimization loop
     for _ in range(num_iterations):
@@ -202,7 +202,7 @@ ExperimentTypes = {
     'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
     'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
     'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
-    'emp_snr': float, 'preconditionned_optimization': bool,
+    'emp_snr': float, 'preconditioned_optimization': bool,
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
@@ -220,9 +220,10 @@ def make_df():
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': 'wr',
         # Sampling distribution types
-        'sampling_dist_type': ['optimized','robust','half_robust'],
+        'sampling_dist_type': ['optimized', 'robust'],
         # Preconditioning option
-        'preconditionned_optimization': [True, False],
+        # 'preconditioned_optimization': [True, False],
+        'prec_exponent': [-1/2, -1/4, -1/8, 0, 1/2],
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
@@ -241,7 +242,7 @@ def make_df():
     #     'sampling_type': 'wr',
     #     # Sampling distribution types
     #     'sampling_dist_type': ['optimized', "robust", "uniform", "Ber"],
-    #     'preconditionned_optimization': [True, False],  # Preconditioning option
+    #     'preconditioned_optimization': [True, False],  # Preconditioning option
     #     'lr': [0.1],  # Learning rate for optimization
     #     'beta1': [0.8],
     #     'beta2': [0.999],
@@ -253,7 +254,7 @@ def make_df():
     # })
 
     # Repeat experiments for statistical robustness
-    df = repeat(df, 500)
+    df = repeat(df, 200)
 
     # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
@@ -290,7 +291,7 @@ def make_df():
 #         'sigma': [0.0, 0.01, 0.3, 1.0],  # Noise levels
 #         'sampling_type': 'wr',  # Weighted random sampling (fixed as in generative.py)
 #         'sampling_dist_type': ['uniform', 'optimized', 'robust'],  # Sampling distribution types
-#         'preconditionned_optimization': [True, False],  # Preconditioning option
+#         'preconditioned_optimization': [True, False],  # Preconditioning option
 #         'lr': [0.001],  # Learning rate for optimization
 #         'max_iter': [5000],  # Number of iterations for recovery
 #         'num_repeats_in_optim': [2]  # Number of optimization repeats (batch size in recover_signal)
@@ -326,7 +327,7 @@ def make_df():
 #         'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
 #         'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
 #         'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust']),
-#         'emp_snr': float, 'preconditionned_optimization': bool
+#         'emp_snr': float, 'preconditioned_optimization': bool
 #     }
 #
 #     # Apply type casting
@@ -358,6 +359,8 @@ def experiment(data: dict) -> dict[str, Any]:
     loc_co = get_fft_loc_coherences(generator)
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
+    if "prec_exponent" in data:
+        d = (d**(-2))**data["prec_exponent"]
     d = torch.tensor(d).to(device)
     m_tld = indices.size
 
@@ -372,12 +375,12 @@ def experiment(data: dict) -> dict[str, Any]:
 
     SDF = SF
     btld = b
-    if data['preconditionned_optimization']:
+    if 'preconditioned_optimization' in data.keys():
         if data['sampling_type'] == 'Ber':
             raise NotImplementedError(
-                "Bernoulli sampling with preconditionned opt not implemented")
+                "Bernoulli sampling with preconditioned opt not implemented")
         dtld = d[indices]
-        SDF = preconditionnedCSMeasurementMatrix(SF, dtld)
+        SDF = preconditionedCSMeasurementMatrix(SF, dtld)
         btld = dtld*b
 
     x_hat, opt_data, test_losses, smallest_loss = recover_signal(

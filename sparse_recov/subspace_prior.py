@@ -12,12 +12,12 @@ from utils_plot import show_vec_mag
 from scipy.fft import fftshift, fft2
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "level": int, "img": pd.CategoricalDtype(
-    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditionned_optimization": bool}
+    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool}
 
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 6, integer=True), 'k': [100], 'sigma': [
-        0.0, 1e-4, 1e-2, 1e0], 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditionned_optimization": [True, False]})
+        0.0, 1e-4, 1e-2, 1e0], 'max_iter': 1e6, 'img': "camera", "sampling_type": "wr", "adapted_sampling": True, "preconditioned_optimization": [True, False]})
     # df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -135,7 +135,7 @@ def experiment(data: dict) -> dict[str, Any]:
     b = signal + noise
 
     # Recovery via least squares
-    if data['preconditionned_optimization']:
+    if data['preconditioned_optimization']:
         if data['sampling_type'] == 'Ber':
             raise NotImplementedError()
         SDF = SDF2_func(indices, m, n, d)
@@ -220,10 +220,10 @@ def experiment(data: dict) -> dict[str, Any]:
     # noise = 1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)
     # b = signal + noise
     #
-    # if data['preconditionned_optimization']:
+    # if data['preconditioned_optimization']:
     #     if data['sampling_type'] == 'Ber':
     #         raise NotImplementedError(
-    #             "Bernoulli sampling with preconditionned opt not implemented")
+    #             "Bernoulli sampling with preconditioned opt not implemented")
     #     SDF = SDF2_func(indices, m, n, d)
     #     SDF_transpose = SDF2_transpose_map(indices, m, n, true_signal.shape, d)
     #     A = WaveletPartialFourier(indices, np.prod(theshape), lambda x: SDF(

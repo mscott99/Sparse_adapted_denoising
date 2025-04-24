@@ -37,7 +37,7 @@ def Haar_local_coherence(sqt_n: int, level: int):
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditionned_optimization": bool}
+    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -72,9 +72,9 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256
     df = allcombinations({'m': logspace(3e2, sqt_n**2*4, 8, integer=True), 'k': [60], 'sigma': [0.0, 0.001, 0.01,  0.1,   0.3, 1.0], 'img': ["camera", "phantom"], "sampling_type": "wr",
-                          "sampling_dist_type": ["uniform", "optimized", "robust"], "preconditionned_optimization": True, "alg": "bpdn_projected"})
+                          "sampling_dist_type": ["uniform", "optimized", "robust"], "preconditioned_optimization": True, "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
-    #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditionned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
+    #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
     df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
@@ -139,10 +139,10 @@ def experiment(data: dict) -> dict[str, Any]:
     noise = 1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)
     b = signal + noise
 
-    if data['preconditionned_optimization']:
+    if data['preconditioned_optimization']:
         if data['sampling_type'] == 'Ber':
             raise NotImplementedError(
-                "Bernoulli sampling with preconditionned opt not implemented")
+                "Bernoulli sampling with preconditioned opt not implemented")
         SDF = SDF2_func(indices, m, n, d)
         SDF_transpose = SDF2_transpose_map(indices, m, n, true_signal.shape, d)
         A = WaveletPartialFourier(indices, wav_len, lambda x: SDF(
