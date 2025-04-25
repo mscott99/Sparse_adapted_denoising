@@ -226,7 +226,7 @@ def make_df():
         'prec_exponent': [-1/2, -1/4, -1/8, 0, 1/2],
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
-        'beta2': [0.999],
+        'beta2': [0.99999],
         'max_iter': [1000],  # 15000 more than enough for MNIST recovery.
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
