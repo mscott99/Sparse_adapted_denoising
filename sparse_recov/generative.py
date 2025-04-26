@@ -222,7 +222,7 @@ def make_df():
         # Sampling distribution types
         'sampling_dist_type': ['optimized'],
         # Preconditioning option
-        'preconditioned_optimization': [True, False],
+        'preconditioned_optimization': False,
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
