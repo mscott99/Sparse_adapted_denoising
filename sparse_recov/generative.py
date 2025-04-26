@@ -216,58 +216,29 @@ def make_df():
         # Number of measurements
         'm': logspace(2, sqt_n**2*3, 5, integer=True),
         'k': [8],  # Latent dimension (analogous to sparsity level)
-        'sigma': 0.1,  # Noise levels
+        'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
-        'sampling_type': 'wr',
+        'sampling_type': ['wr', 'Ber'],
         # Sampling distribution types
-        'sampling_dist_type': ['optimized', 'robust'],
+        'sampling_dist_type': ['optimized'],
         # Preconditioning option
         'preconditioned_optimization': [True, False],
-        'prec_exponent': [-1/2, -1/4, -1/8, 0, 1/2],
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
-        'beta2': [0.99999],
+        'beta2': [0.999],
         'max_iter': [1000],  # 15000 more than enough for MNIST recovery.
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
         'model_type': "trained"
     })
-
-    # df = allcombinations({
-    #     'm': logspace(2, sqt_n**2*3, 8, integer=True),  # Number of measurements
-    #     'k': [8],  # Latent dimension (analogous to sparsity level)
-    #     'sigma': [0.0, 0.01, 0.2, 0.5, 1.0, 5.0],  # Noise levels
-    #     # Weighted random sampling (fixed as in generative.py)
-    #     'sampling_type': 'wr',
-    #     # Sampling distribution types
-    #     'sampling_dist_type': ['optimized', "robust", "uniform", "Ber"],
-    #     'preconditioned_optimization': [True, False],  # Preconditioning option
-    #     'lr': [0.1],  # Learning rate for optimization
-    #     'beta1': [0.8],
-    #     'beta2': [0.999],
-    #     'max_iter': [300],  # 15000 more than enough for MNIST recovery.
-    #     'opt_tol_stop': [1e-3],
-    #     # Number of optimization repeats (batch size in recover_signal)
-    #     'num_repeats_in_optim': [1],
-    #     'model_type': "trained"
-    # })
-
-    # Repeat experiments for statistical robustness
     df = repeat(df, 200)
 
-    # Set categorical type for sampling_type
     df['sampling_type'] = df['sampling_type'].astype('category')
-
-    # Assign random seeds
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-
-    # Add standard attributes
     add_standard_attributes(df)
-
-    # Update DataFrame attributes with experiment-specific settings
     df.attrs.update({
         'sqt_n': sqt_n,
         'label': 'generative_vanilla',
@@ -277,9 +248,6 @@ def make_df():
         'save_opt_data': True
     })
     add_standard_attributes(df)
-    # Define experiment types for type consistency (adapted from sparse case)
-
-    # Apply type casting
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
