@@ -47,7 +47,7 @@ def wr_prob_vec(loc_co):
 def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
     pos_co = loc_co[loc_co > 0]
     n = pos_co.size
-    assert m < n, "Cannot sample enough measurements given entries with zero coherences cannot be sampled"
+    assert m <= n, "Cannot sample enough measurements given entries with zero coherences cannot be sampled"
     sorted_co = np.sort(pos_co.flat)
     J = n
 

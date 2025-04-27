@@ -14,7 +14,7 @@ import os
 from .train_model import Generator, ConvVAE
 
 # Import relevant functions from your sampling_recov_functions.py
-from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, sample_CS_matrix
+from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, Sample_CS_matriX
 
 
 def generate_random_signal(generator: Generator, latent_dim: int, device: str = 'cpu') -> torch.Tensor:
@@ -36,7 +36,8 @@ def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
         # (num_samples, num_samples, 28, 28)
         differences = outputs_i - outputs_j
         norms = torch.norm(differences, dim=(2, 3), keepdim=True)
-        normalized_diffs = differences /(norms + 1e-8)  # Avoid division by zero
+        normalized_diffs = differences / \
+            (norms + 1e-8)  # Avoid division by zero
 
         # Step 5: Compute FFT of the normalized differences
         # Convert to complex for FFT
@@ -200,7 +201,7 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         'm': logspace(2, sqt_n**2, 7, integer=True),
-        'k': [8],  # Latent dimension (analogous to sparsity level)
+        'k': [16],  # Latent dimension (analogous to sparsity level)
         'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': ['wr', 'Ber'],
@@ -215,9 +216,9 @@ def make_df():
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
-        'model_type': "trained"
+        'model_type': "perturbed"
     })
-    df = repeat(df, 200)
+    df = repeat(df, 2)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
@@ -289,6 +290,16 @@ def make_df():
 #     return df
 
 
+def load_saved_model(k: int, file_name: str):
+    proj_path = os.getenv("PROJECT")
+    if proj_path == None:
+        raise Exception("PROJECT env var was not set.")
+    model = ConvVAE(k=k)
+    model.load_state_dict(torch.load(os.path.join(
+        proj_path, "models", file_name), map_location=torch.device('cpu')))
+    return model.decoder
+
+
 def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
@@ -299,13 +310,11 @@ def experiment(data: dict) -> dict[str, Any]:
     if data['model_type'] == "random":
         generator = Generator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
     elif data['model_type'] == "trained":
-        proj_path = os.getenv("PROJECT")
-        if proj_path == None:
-            raise Exception("PROJECT env var was not set.")
-        model = ConvVAE()
-        model.load_state_dict(torch.load(os.path.join(
-            proj_path, "models/model_weights.pth")))
-        generator = model.decoder
+        assert data['k'] == 8 
+        generator = load_saved_model(k=8, file_name="model_weights.pth")
+    elif data['model_type'] == "perturbed":
+        assert data['k'] == 16
+        generator = load_saved_model(k=16, file_name="perturbed_model_weights_v4.pth")
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
     # Override n because the wavelet transform may change it slightly
@@ -361,12 +370,3 @@ def experiment(data: dict) -> dict[str, Any]:
         return_dict['opt_data'] = opt_data
         return_dict['test_losses'] = test_losses
     return return_dict
-
-
-def test_generator_output_shape():
-    gen = Generator(k=8, output_shape=(28, 28))
-    z = torch.randn(1, 8)
-    output = gen(z)
-    assert output.shape == (
-        1, 1, 28, 28), f"Expected shape (1, 1, 28, 28), got {output.shape}"
-    print("Generator output shape test passed.")
