@@ -162,14 +162,14 @@ def get_trained_generator(latent_dim: int, train_dataset) -> nn.Module:
 
 # Example usage
 if __name__ == "__main__":
-    latent_dim = 8
+    latent_dim = 16
     # Load MNIST dataset
     # transform = transforms.ToTensor()
     # train_dataset = torchvision.datasets.MNIST(root='./data', train=True,
                                                # transform=transform, download=True)
-    train_dataset = high_coherence_MNIST(l=3, perturbation_scale=3, batch_size=256)# nine perturbed dimensions
+    train_dataset = high_coherence_MNIST(l=3, perturbation_scale=3, batch_size=512)# nine perturbed dimensions
     vae = get_trained_generator(latent_dim, train_dataset)
-    torch.save(vae.state_dict(), 'perturbed_model_weights.pth')
+    torch.save(vae.state_dict(), 'perturbed_model_weights_v2.pth')
 
     # Generate a sample image
     # device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -182,11 +182,3 @@ if __name__ == "__main__":
     # plt.imshow(img_tensor, cmap='gray')
     # plt.show()
 
-
-def test_generator_integration():
-    vae = ConvVAE(k=8)
-    z = torch.randn(1, 8)
-    output = vae.decode(z)
-    assert output.shape == (
-        1, 1, 28, 28), f"Expected output shape (1, 1, 28, 28), got {output.shape}"
-    print("Generator integration test passed.")
