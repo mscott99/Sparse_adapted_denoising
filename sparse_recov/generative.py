@@ -13,9 +13,6 @@ import pickle
 import os
 from .train_model import Generator, ConvVAE
 
-# Import relevant functions from your sampling_recov_functions.py
-from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, Sample_CS_matriX
-
 
 def generate_random_signal(generator: Generator, latent_dim: int, device: str = 'cpu') -> torch.Tensor:
     with torch.no_grad():
@@ -310,11 +307,12 @@ def experiment(data: dict) -> dict[str, Any]:
     if data['model_type'] == "random":
         generator = Generator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
     elif data['model_type'] == "trained":
-        assert data['k'] == 8 
+        assert data['k'] == 8
         generator = load_saved_model(k=8, file_name="model_weights.pth")
     elif data['model_type'] == "perturbed":
         assert data['k'] == 16
-        generator = load_saved_model(k=16, file_name="perturbed_model_weights_v4.pth")
+        generator = load_saved_model(
+            k=16, file_name="perturbed_model_weights_v4.pth")
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
     # Override n because the wavelet transform may change it slightly
