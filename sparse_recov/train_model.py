@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from typing import Tuple, Callable
 import numpy as np
 import pickle
+from sparse_recov.toy_Fourier import high_coherence_MNIST
 
 
 class Generator(nn.Module):
@@ -135,7 +136,7 @@ def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
             f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader.dataset):.4f}")
 
 
-def get_trained_generator(latent_dim: int, signal_dim: int = 784) -> nn.Module:
+def get_trained_generator(latent_dim: int, train_dataset) -> nn.Module:
     """
     Train and return the Generator from a convolutional VAE as a generative model.
 
@@ -147,10 +148,6 @@ def get_trained_generator(latent_dim: int, signal_dim: int = 784) -> nn.Module:
         decoder: Trained Generator instance
         reshape_fn: Function to reshape flat signal to 2D (28x28)
     """
-    # Load MNIST dataset
-    transform = transforms.ToTensor()
-    train_dataset = torchvision.datasets.MNIST(root='./data', train=True,
-                                               transform=transform, download=True)
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True)
 
     # Initialize convolutional VAE
@@ -166,8 +163,13 @@ def get_trained_generator(latent_dim: int, signal_dim: int = 784) -> nn.Module:
 # Example usage
 if __name__ == "__main__":
     latent_dim = 8
-    vae = get_trained_generator(latent_dim)
-    torch.save(vae.state_dict(), 'model_weights.pth')
+    # Load MNIST dataset
+    # transform = transforms.ToTensor()
+    # train_dataset = torchvision.datasets.MNIST(root='./data', train=True,
+                                               # transform=transform, download=True)
+    train_dataset = high_coherence_MNIST(l=3, perturbation_scale=3, batch_size=256)# nine perturbed dimensions
+    vae = get_trained_generator(latent_dim, train_dataset)
+    torch.save(vae.state_dict(), 'perturbed_model_weights.pth')
 
     # Generate a sample image
     # device = 'cuda' if torch.cuda.is_available() else 'cpu'

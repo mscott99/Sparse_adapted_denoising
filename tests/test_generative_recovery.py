@@ -3,8 +3,10 @@ import torch
 import numpy as np
 from sparse_recov.generative import Generator, generate_random_signal, get_fft_loc_coherences, CSMeasurementMatrix, recover_signal, make_df, experiment, sample_CS_matrix
 from sparse_recov.train_model import ConvVAE
+from sparse_recov.toy_Fourier import high_coherence_MNIST
 from sparse_recov.sampling_recov_functions import half_robust
-
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 # Fixture for a simple generator
 
 
@@ -21,6 +23,13 @@ def test_experiment():
     first_row['max_iter'] = 2
     experiment({**df.attrs, **first_row})  # test for runtime errors
 
+
+def test_run_batch():
+    newdata = high_coherence_MNIST(l=3,perturbation_scale=3, data_dir="./data")
+    loader = DataLoader(newdata)
+    iter(loader).__next__()[0,0,:,:]
+    # plt.imshow(iter(loader).__next__()[0,0,:,:])
+    # plt.show()
 
 def test_half_robust():
     """Test the half_robust function on a simple flattened coherence vector"""
