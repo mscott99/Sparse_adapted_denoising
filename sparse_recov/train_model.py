@@ -166,19 +166,7 @@ if __name__ == "__main__":
     # Load MNIST dataset
     # transform = transforms.ToTensor()
     # train_dataset = torchvision.datasets.MNIST(root='./data', train=True,
-                                               # transform=transform, download=True)
-    train_dataset = high_coherence_MNIST(l=3, perturbation_scale=3, batch_size=512)# nine perturbed dimensions
+    train_dataset = high_coherence_MNIST(l=2, perturbation_scale=3, batch_size=512)# nine perturbed dimensions
     vae = get_trained_generator(latent_dim, train_dataset)
     torch.save(vae.state_dict(), 'perturbed_model_weights_v2.pth')
-
-    # Generate a sample image
-    # device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # with torch.no_grad():
-    #     z = torch.randn(1, latent_dim).to(device)  # Sample from N(0,1)
-    #     img_tensor = decoder(z).cpu().numpy().squeeze()  # Shape: (1, 28, 28) -> (28, 28)
-    #
-    # # Optionally visualize
-    # import matplotlib.pyplot as plt
-    # plt.imshow(img_tensor, cmap='gray')
-    # plt.show()
 

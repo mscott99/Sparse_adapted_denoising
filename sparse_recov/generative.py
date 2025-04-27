@@ -25,18 +25,6 @@ def generate_random_signal(generator: Generator, latent_dim: int, device: str = 
 
 def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
                            device: str = 'cpu') -> np.ndarray:
-    """
-    Compute local coherences using the generator by generating a batch of signals,
-    computing self-differences, normalizing, taking FFT, and finding the maximum over the batch.
-
-    Args:
-        generator: Generator model (random or trained)
-        num_samples: Number of latent codes to sample (default 1000)
-        device: Device to run the computation on ('cpu' or 'cuda')
-
-    Returns:
-        loc_coherences: 2D numpy array of local coherences (e.g., 28x28)
-    """
     with torch.no_grad():
         codes = torch.randn(num_samples, generator.k).to(device)
         outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
@@ -48,14 +36,11 @@ def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
         # (num_samples, num_samples, 28, 28)
         differences = outputs_i - outputs_j
         norms = torch.norm(differences, dim=(2, 3), keepdim=True)
-        normalized_diffs = differences / \
-            (norms + 1e-8)  # Avoid division by zero
+        normalized_diffs = differences /(norms + 1e-8)  # Avoid division by zero
 
         # Step 5: Compute FFT of the normalized differences
         # Convert to complex for FFT
-        coefs = torch.fft.fft2(differences, norm="ortho")
-
-        # Take the absolute value (magnitude) of the FFT
+        coefs = torch.fft.fft2(normalized_diffs, norm="ortho")
         loc_co = torch.max(torch.abs(coefs), dim=0)[
             0]  # (num_samples^2, 28, 28)
         loc_co = torch.max(loc_co, dim=0)[0]
