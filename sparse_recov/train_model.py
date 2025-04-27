@@ -155,7 +155,7 @@ def get_trained_generator(latent_dim: int, train_dataset) -> nn.Module:
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Train the VAE
-    train_vae(vae, train_loader, num_epochs=20, device=device)
+    train_vae(vae, train_loader, num_epochs=60, device=device)
 
     return vae
 
