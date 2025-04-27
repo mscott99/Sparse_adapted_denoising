@@ -6,24 +6,17 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, Dataset
 
 
-def perturb_image(images, l, scale:float):
+def perturb_image(images:torch.Tensor, l, scale:float):
     images_fft = torch.fft.fft2(images, dim=[-2,-1], norm="ortho")
     height, width = images.shape[2:]
     assert l <= height and l <= width
-    perturbation = scale * \
-        torch.randn_like(images_fft[:,:, :l, :l], dtype=torch.complex64)
+    
+    perturbation = scale * torch.randn(images_fft.shape[0], 1, 2*l-1, 2*l-1, dtype=torch.complex64)
     # Add perturbation to low frequencies
-    images_fft[:, :, :l, :l] += perturbation
-
-    # Add conjugate perturbation to corresponding high frequencies
-    if l > 1:  # Skip if l=0 to avoid redundant DC perturbation
-        # For frequency (k,h) in [:l+1, :l+1], conjugate goes to (-k,-h) mod (height, width)
-        conj_perturbation = torch.conj(perturbation[:, :, 1:, 1:])  # Exclude (0,0), (0,k), (k,0)
-        images_fft[:, :, -l+1:, -l+1:] += conj_perturbation.flip(2).flip(3)  # Shape matches: [batch, channels, l, l]
-        # Handle edge cases for (0,k) and (k,0)
-        images_fft[:, :, 0, -l+1:] += torch.conj(perturbation[:, :, 0, 1:l+1]).flip(-1)  # Shape: [batch, channels, 1, l]
-        images_fft[:, :, -l+1:, 0] += torch.conj(perturbation[:, :, 1:l+1, 0]).flip(-2)
-
+    images_fft[:, :, -l+1:, -l+1:] += perturbation[:,:,:l-1, :l-1]
+    images_fft[:, :, :l, -l+1:] += perturbation[:,:,l-1:,:l-1]
+    images_fft[:, :, -l+1:, :l] += perturbation[:,:,:l-1, l-1:]
+    images_fft[:, :, :l, :l] += perturbation[:,:,l-1:,l-1:]
     perturbed_images = torch.fft.ifft2(images_fft, dim=(-2,-1), norm="ortho").real
     return torch.clip(perturbed_images, 0, 1)
 
@@ -93,7 +86,7 @@ if __name__ == "__main__":
     fig, axes = plt.subplots(2, len(example_indices), figsize=(15, 6))
     original_images = torch.stack(
         [original_train_dataset[i][0] for i in example_indices])
-    perturbed = perturb_image(original_images, l=3, scale=3)
+    perturbed = perturb_image(original_images, l=3, scale=2)
     # Plot original and perturbed images
     for i in range(len(example_indices)):
         # Plot original image in top row
