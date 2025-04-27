@@ -166,7 +166,7 @@ if __name__ == "__main__":
     # Load MNIST dataset
     # transform = transforms.ToTensor()
     # train_dataset = torchvision.datasets.MNIST(root='./data', train=True,
-    train_dataset = high_coherence_MNIST(l=2, perturbation_scale=3, batch_size=512)# nine perturbed dimensions
+    train_dataset = high_coherence_MNIST(l=2, perturbation_scale=4, batch_size=512)# nine perturbed dimensions
     vae = get_trained_generator(latent_dim, train_dataset)
-    torch.save(vae.state_dict(), 'perturbed_model_weights_v3.pth')
+    torch.save(vae.state_dict(), 'perturbed_model_weights_v4.pth')
 
