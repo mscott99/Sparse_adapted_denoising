@@ -28,8 +28,8 @@ def test_run_batch():
     newdata = high_coherence_MNIST(l=2,perturbation_scale=3, data_dir="./data")
     loader = DataLoader(newdata)
     iter(loader).__next__()[0,0,:,:]
-    plt.imshow(iter(loader).__next__()[0,0,:,:])
-    plt.show()
+    # plt.imshow(iter(loader).__next__()[0,0,:,:])
+    # plt.show()
 
 def test_half_robust():
     """Test the half_robust function on a simple flattened coherence vector"""

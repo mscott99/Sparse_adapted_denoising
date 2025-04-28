@@ -217,7 +217,7 @@ def make_df():
         'num_repeats_in_optim': [1],
         'model_type': "perturbed"
     })
-    df = repeat(df, 2)
+    df = repeat(df, 3)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
