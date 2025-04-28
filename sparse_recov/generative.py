@@ -215,9 +215,9 @@ def make_df():
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
-        'model_type': "perturbed"
+        'model_type': ["perturbed", "trained"]
     })
-    df = repeat(df, 3)
+    df = repeat(df, 100)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
