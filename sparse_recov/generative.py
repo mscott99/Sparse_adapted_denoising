@@ -337,7 +337,7 @@ def experiment(data: dict) -> dict[str, Any]:
 
     SDF = SF
     btld = b
-    if 'preconditioned_optimization' in data.keys():
+    if 'preconditioned_optimization' in data.keys() and data['preconditioned_optimization']:
         if data['sampling_type'] == 'Ber':
             raise NotImplementedError(
                 "Bernoulli sampling with preconditioned opt not implemented")
