@@ -13,6 +13,8 @@ import pickle
 import os
 from .train_model import Generator, ConvVAE
 
+from sparse_recov.sampling_recov_functions import sample_CS_matrix
+
 
 def generate_random_signal(generator: Generator, latent_dim: int, device: str = 'cpu') -> torch.Tensor:
     with torch.no_grad():
