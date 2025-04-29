@@ -56,6 +56,7 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float
         return samplings, 0, 0.0
 
     sorted_co = np.sort(pos_co.flat)
+    
     J = n
     def Lsqrd(j, m, n, sorted_co):
         assert j >= 0
