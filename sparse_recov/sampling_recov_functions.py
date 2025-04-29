@@ -45,14 +45,24 @@ def wr_prob_vec(loc_co):
 
 
 def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
+    # Adjusting for the python 0-indexing, J is the first *saturated* index (this differs from the theory).
     pos_co = loc_co[loc_co > 0]
     n = pos_co.size
     assert m <= n, "Cannot sample enough measurements given entries with zero coherences cannot be sampled"
+
+    if m == n:
+        samplings = np.zeros_like(loc_co)
+        samplings[loc_co > 0]= 1
+        return samplings, 0, 0.0
+
     sorted_co = np.sort(pos_co.flat)
     J = n
-
     def Lsqrd(j, m, n, sorted_co):
+        assert j >= 0
+        assert m <= n
+        assert j <= n
         return m * np.sum(sorted_co[:j]**2) / (m - (n-j))
+
     for j in range(n, n-m-1, -1):
         if m*sorted_co[j-1]**2 < Lsqrd(j, m, n, sorted_co):
             J = j

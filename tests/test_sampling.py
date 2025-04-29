@@ -50,6 +50,11 @@ def test_bernoulli_prob_weights_with_zeros():
     # Only counting the non-zero positions
     assert np.isclose(np.sum(probs), m, rtol=0.1)
 
+    probs2, J, Lsqr = Bernoulli_prob_weights(loc_co, 3)
+    print(probs2)
+    assert np.isclose(probs2, np.array([0,0,1,1,1])).all()
+
+
 def test_bernoulli_prob_weights_edge_cases():
     """Test Bernoulli_prob_weights with edge cases"""
     # Case 1: All coherence values are equal

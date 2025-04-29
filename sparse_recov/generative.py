@@ -1,5 +1,5 @@
 import torch
-from utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
+from utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from time import time
 import pandas as pd
 from typing import TypedDict, Literal, Any, Tuple, List, Optional, Union
@@ -200,7 +200,6 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         'm': logspace(2, sqt_n**2, 7, integer=True),
-        'k': [16],  # Latent dimension (analogous to sparsity level)
         'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         'sampling_type': ['wr', 'Ber'],
@@ -215,9 +214,12 @@ def make_df():
         'opt_tol_stop': [1e-7],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
-        'model_type': ["perturbed", "trained"]
     })
-    df = repeat(df, 100)
+    
+    model_df = pd.DataFrame({'model_type': ["perturbed", "trained"], 'k': [16, 8]})
+    df = cross_merge_dfs(df, model_df)
+
+    df = repeat(df, 10)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
@@ -353,7 +355,7 @@ def experiment(data: dict) -> dict[str, Any]:
     # Return relevant data.
     signal_mag = np.linalg.norm(signal.cpu().numpy())
     noise_mag = np.linalg.norm(noise.cpu().numpy())
-    if data['sigma'] == 0:
+    if noise_mag == 0:
         emp_snr = np.inf
     else:
         emp_snr = signal_mag / noise_mag
