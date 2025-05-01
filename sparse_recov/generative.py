@@ -199,7 +199,7 @@ def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': logspace(2, sqt_n**2, 7, integer=True),
+        'm': logspace(2, sqt_n**2/2, 7, integer=True),
         'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         # robust sampling schemes
