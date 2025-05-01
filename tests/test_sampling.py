@@ -92,6 +92,16 @@ def test_wor():
     indices, counts = sample_wor(p, int(9e2))
     assert len(indices) == int(9e2)
 
+    # Create a skewed probability distribution
+    n = 100
+    p = np.array([0.999] + [0.001 / (n - 1)] * (n - 1))  # One high probability, rest very low
+    p /= p.sum()  # Normalize to sum to 1
+    m = 50  # Requesting many distinct indices, likely to take too long
+
+    # Check that ValueError is raised
+    with pytest.raises(ValueError):
+        sample_wor(p, m)
+
 def test_bernoulli_prob_weights_edge_cases():
     """Test Bernoulli_prob_weights with edge cases"""
     # Case 1: All coherence values are equal

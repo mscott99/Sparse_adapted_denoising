@@ -115,6 +115,25 @@ def sample_wor(p, m):
     counts = np.zeros(n, dtype=int)
     assert m >= 1
     assert len(p) >= 1
+
+    # Maximum allowed iterations (tuned for reasonable runtime, e.g., ~1 second on typical hardware)
+    MAX_ITERATIONS = 1e6 
+    # Sort probabilities in descending order
+    sorted_p = np.sort(p)[::-1]
+    # Estimate probability of sampling remaining indices
+    if m > 1:
+        # Approximate expected trials using the probability of the least likely needed index
+        min_prob = sorted_p[m-1]  # Smallest probability among the m highest
+        # Expected trials to hit a new index when m-1 are already sampled
+        expected_trials_per_new_index = 1 / min_prob
+        # Rough estimate of total trials (simplified coupon collector approximation)
+        estimated_trials = m * expected_trials_per_new_index
+        if estimated_trials > MAX_ITERATIONS:
+            raise ValueError(
+                f"Sampling {m} distinct indices with given probabilities is expected to take too long "
+                f"(estimated {estimated_trials:.0f} trials). Consider reducing m or adjusting probabilities."
+            )
+
     batch_size = max(1, int(m * 1.5))
     while True:
         samples = np.random.choice(n, size=batch_size, p=p, replace=True)
@@ -166,7 +185,8 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
         d = np.zeros_like(p)
         d[p > 0] = 1/np.sqrt(n * p[p > 0])
         prec_c = np.sqrt(counts)
-        normalized_c = prec_c * n/np.sum(prec_c) # normalize so that the trace is n, like I.
+        # normalize so that the trace is n, like I.
+        normalized_c = prec_c * n/np.sum(prec_c)
         d = d * normalized_c
     elif sampling_type == "Ber":
         assert m <= n, "Bernoulli sampling requires m less than n"
