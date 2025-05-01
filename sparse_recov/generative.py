@@ -199,14 +199,16 @@ def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': logspace(2, sqt_n**2*3, 7, integer=True),
+        'm': logspace(2, sqt_n**2, 7, integer=True),
         'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
-        'sampling_type': ['wr'],
-        # Sampling distribution types
-        'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
-        # Preconditioning option
-        'preconditioned_optimization': [True, False],
+        # robust sampling schemes
+        # 'sampling_type': ['wr'],
+        # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
+        # 'preconditioned_optimization': [True, False],
+        'sampling_type': ['wr', 'wor', 'Ber'],
+        'sampling_dist_type': 'optimized',
+        'preconditioned_optimization': [False],
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
@@ -219,7 +221,7 @@ def make_df():
     model_df = pd.DataFrame({'model_type': ["perturbed", "trained"], 'k': [16, 8]})
     df = cross_merge_dfs(df, model_df)
 
-    df = repeat(df, 200)
+    df = repeat(df, 10)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234

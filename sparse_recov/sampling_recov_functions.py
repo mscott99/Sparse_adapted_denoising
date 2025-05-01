@@ -52,12 +52,13 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float
 
     if m == n:
         samplings = np.zeros_like(loc_co)
-        samplings[loc_co > 0]= 1
+        samplings[loc_co > 0] = 1
         return samplings, 0, 0.0
 
     sorted_co = np.sort(pos_co.flat)
-    
+
     J = n
+
     def Lsqrd(j, m, n, sorted_co):
         assert j >= 0
         assert m <= n
@@ -85,16 +86,51 @@ def SDF2_func(indices, m, n, d):
 
 
 def half_robust(flat_co):
-    n= len(flat_co)
+    n = len(flat_co)
     p = flat_co**2/np.sum(flat_co**2)
     p_first = p[:int(n/2)]
     tot_second = np.sum(p[int(n/2):])
     prev_tot_second = np.sum(flat_co[int(n/2):])
-    if prev_tot_second==0:
-        p_second= np.zeros_like(flat_co[int(n/2):])
+    if prev_tot_second == 0:
+        p_second = np.zeros_like(flat_co[int(n/2):])
     else:
-        p_second = flat_co[int(n/2):]*tot_second/prev_tot_second 
+        p_second = flat_co[int(n/2):]*tot_second/prev_tot_second
     return np.concatenate((p_first, p_second), axis=0)
+
+
+def sample_wor(p, m):
+    """
+    Sample without replacement by re-sampling with replacement until all distinct indices are gathered.
+
+    Args:
+        p (array-like): Probabilities associated with each index (should sum to 1).
+
+    Returns:
+        tuple: (indices, counts)
+            - indices: Array of unique sampled indices in order of first appearance.
+            - counts: Array of the number of times each index was sampled.
+    """
+    p = np.asarray(p, dtype=float)
+    n = len(p)
+    indices = np.array([])
+    counts = np.zeros(n, dtype=int)
+    assert m >= 1
+    assert len(p) >= 1
+    batch_size = max(1, int(m * 1.5))
+    while True:
+        # Sample a batch of indices
+        samples = np.random.choice(n, size=batch_size, p=p, replace=True)
+        tentative_unique = np.unique(np.concatenate([indices, samples]))
+        if len(tentative_unique) > m:
+            # Discard the attempt. Halve the batch size, and try again.
+            batch_size = max(1, batch_size // 2)
+            continue
+        indices = tentative_unique
+        batch_counts = np.bincount(samples, minlength=n)
+        counts += batch_counts
+        if len(indices) == m:
+            return tentative_unique, counts
+        batch_size = max(1, int((m - len(indices)) * 1.5))
 
 
 def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
@@ -116,6 +152,24 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
         d = np.zeros_like(p)
         d[p > 0] = 1/np.sqrt(n * p[p > 0])
         indices = np.random.choice(n, m, replace=True, p=p)
+    elif sampling_type == "wor":
+        if sampling_dist_type == "robust":
+            p = flat_co / np.sum(flat_co)
+        elif sampling_dist_type == "half_robust":
+            p = half_robust(flat_co)
+        elif sampling_dist_type == "optimized":
+            p = flat_co**2/np.sum(flat_co**2)
+        elif sampling_dist_type == "uniform":
+            p = np.repeat(1/n, n)
+        else:
+            raise NotImplementedError(
+                "Sampling scheme " + sampling_dist_type+" not implemented")
+        d = np.zeros_like(p)
+        d[p > 0] = 1/np.sqrt(n * p[p > 0])
+        indices, counts = sample_wor(p, m)
+        prec_c = np.sqrt(counts)
+        normalized_c = prec_c * n/np.sum(prec_c) # normalize so that the trace is n, like I.
+        d = d * normalized_c
     elif sampling_type == "Ber":
         assert m <= n, "Bernoulli sampling requires m less than n"
         if sampling_dist_type == "optimized":
