@@ -110,7 +110,6 @@ def sample_wor(p, m):
             - indices: Array of unique sampled indices in order of first appearance.
             - counts: Array of the number of times each index was sampled.
     """
-    p = np.asarray(p, dtype=float)
     n = len(p)
     indices = np.array([])
     counts = np.zeros(n, dtype=int)
@@ -118,7 +117,6 @@ def sample_wor(p, m):
     assert len(p) >= 1
     batch_size = max(1, int(m * 1.5))
     while True:
-        # Sample a batch of indices
         samples = np.random.choice(n, size=batch_size, p=p, replace=True)
         tentative_unique = np.unique(np.concatenate([indices, samples]))
         if len(tentative_unique) > m:
@@ -164,9 +162,9 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
         else:
             raise NotImplementedError(
                 "Sampling scheme " + sampling_dist_type+" not implemented")
+        indices, counts = sample_wor(p, m)
         d = np.zeros_like(p)
         d[p > 0] = 1/np.sqrt(n * p[p > 0])
-        indices, counts = sample_wor(p, m)
         prec_c = np.sqrt(counts)
         normalized_c = prec_c * n/np.sum(prec_c) # normalize so that the trace is n, like I.
         d = d * normalized_c
@@ -182,6 +180,7 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
             raise NotImplementedError()
         indices = np.where(np.random.rand(n) < weights)[0]
     else:
+        print(sampling_type)
         raise NotImplementedError()
     return (indices, d)
 

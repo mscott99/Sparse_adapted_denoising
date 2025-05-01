@@ -185,13 +185,13 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
 ExperimentTypes = {
     'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
     'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
-    'sampling_type': pd.CategoricalDtype(['wr', 'Ber']),
+    'sampling_type': pd.CategoricalDtype(['wr', 'Ber', 'wor']),
     'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
     'emp_snr': float, 'preconditioned_optimization': bool,
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
-    'model_type': str
+    'model_type': pd.CategoricalDtype(["perturbed", "trained"]),
 }
 
 
