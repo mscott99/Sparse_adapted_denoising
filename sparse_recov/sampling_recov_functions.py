@@ -117,7 +117,7 @@ def sample_wor(p, m):
     assert len(p) >= 1
 
     # Maximum allowed iterations (tuned for reasonable runtime, e.g., ~1 second on typical hardware)
-    MAX_ITERATIONS = 1e6 
+    MAX_ITERATIONS = 1e7
     # Sort probabilities in descending order
     sorted_p = np.sort(p)[::-1]
     # Estimate probability of sampling remaining indices
