@@ -199,8 +199,8 @@ def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': logspace(2, sqt_n**2/2, 7, integer=True),
-        'sigma': [0.0, 0.1, 0.3, 1.0],  # Noise levels
+        #logspace(2, sqt_n**2/2, 7, integer=True),
+        'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         # robust sampling schemes
         # 'sampling_type': ['wr'],
@@ -218,9 +218,9 @@ def make_df():
         'num_repeats_in_optim': [1],
     })
     
-    model_df = pd.DataFrame({'model_type': ["perturbed", "trained"], 'k': [16, 8]})
+    model_df = pd.DataFrame({'model_type': ["perturbed", "trained"], 'k': [16, 8], 'm': [20, 10]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 100)
+    df = repeat(df, 3000)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
