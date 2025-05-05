@@ -88,13 +88,13 @@ def test_wor():
     p= [0.999, 0.000999, 0.000001]
     assert np.all(sample_wor(p, 2)[0] == [0,1])
 
-    p= np.repeat(1e-3, 1e3)
+    p= np.repeat(1e-3, 1000)
     indices, counts = sample_wor(p, int(9e2))
     assert len(indices) == int(9e2)
 
     # Create a skewed probability distribution
-    n = 100
-    p = np.array([0.999] + [0.001 / (n - 1)] * (n - 1))  # One high probability, rest very low
+    n = 1000
+    p = np.array([0.9999] + [0.0001 / (n - 1)] * (n - 1))  # One high probability, rest very low
     p /= p.sum()  # Normalize to sum to 1
     m = 50  # Requesting many distinct indices, likely to take too long
 

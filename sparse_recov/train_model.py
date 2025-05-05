@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from typing import Tuple, Callable
 import numpy as np
 import pickle
-from sparse_recov.toy_Fourier import high_coherence_MNIST
+from sparse_recov.toy_Fourier import high_coherence_MNIST, heavy_tail_MNIST_loaders
 
 
 class Generator(nn.Module):
@@ -166,7 +166,8 @@ if __name__ == "__main__":
     # Load MNIST dataset
     # transform = transforms.ToTensor()
     # train_dataset = torchvision.datasets.MNIST(root='./data', train=True,
-    train_dataset = high_coherence_MNIST(l=2, perturbation_scale=4, batch_size=512)# nine perturbed dimensions
+    # train_dataset = high_coherence_MNIST(l=2, perturbation_scale=4, batch_size=512)# nine perturbed dimensions
+    train_dataset, _ = heavy_tail_MNIST_loaders(0.05, 1.0)
     vae = get_trained_generator(latent_dim, train_dataset)
-    torch.save(vae.state_dict(), 'perturbed_model_weights_v4.pth')
+    torch.save(vae.state_dict(), 'heavy_tail_v0.pth')
 

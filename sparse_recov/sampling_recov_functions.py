@@ -43,9 +43,8 @@ def wr_prob_vec(loc_co):
 #     p[perm] = p
 #     return p/ np.sum(p)
 
-
+# Clean up to put in paper
 def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
-    # Adjusting for the python 0-indexing, J is the first *saturated* index (this differs from the theory).
     pos_co = loc_co[loc_co > 0]
     n = pos_co.size
     assert m <= n, "Cannot sample enough measurements given entries with zero coherences cannot be sampled"
@@ -57,19 +56,21 @@ def Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float
 
     sorted_co = np.sort(pos_co.flat)
 
-    J = n
-
     def Lsqrd(j, m, n, sorted_co):
-        assert j >= 0
+        assert j > n-m-1
         assert m <= n
-        assert j <= n
-        return m * np.sum(sorted_co[:j]**2) / (m - (n-j))
+        assert j <= n-1
+        return m * np.sum(sorted_co[:j+1]**2) / (j-(n-m-1))
 
-    for j in range(n, n-m-1, -1):
-        if m*sorted_co[j-1]**2 < Lsqrd(j, m, n, sorted_co):
+    J = None # Is this right? It is probably never run.
+    for j in range(n-1, n-m-1, -1):
+        if m*sorted_co[j]**2 < Lsqrd(j, m, n, sorted_co):
             J = j
             break
+    assert J!=None, "Unexpected behaviour: no valid J was found."
+
     Lsqr = Lsqrd(J, m, n, sorted_co)
+
     return np.clip(m * loc_co**2 / Lsqr, 0, 1), J, Lsqr
 
 
@@ -199,6 +200,24 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
         else:
             raise NotImplementedError()
         indices = np.where(np.random.rand(n) < weights)[0]
+    elif sampling_type == "adjusted_Ber":
+        assert m <= n, "Bernoulli sampling requires m less than n"
+        if sampling_dist_type == "optimized":
+            weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
+            d = np.zeros_like(weights)
+            d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
+        elif sampling_dist_type == "uniform":
+            weights = m/n
+        else:
+            raise NotImplementedError()
+        MAX_NUMTRIES= 1e4
+        indices = None
+        for i in range(MAX_NUMTRIES):
+            indices = np.where(np.random.rand(n) < weights)[0]
+            if len(indices) == m:
+                break
+        if indices == None:
+            raise ValueError("could not sample conditional Bernoulli")
     else:
         print(sampling_type)
         raise NotImplementedError()
