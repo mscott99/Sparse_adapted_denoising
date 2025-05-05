@@ -120,7 +120,7 @@ def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
     vae.train()
     for epoch in range(num_epochs):
         total_loss = 0
-        for batch_idx, data in enumerate(train_loader):
+        for batch_idx, (data, _) in enumerate(train_loader):
             data = data.to(device)
             optimizer.zero_grad()
 
