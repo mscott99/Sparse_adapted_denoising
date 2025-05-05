@@ -137,7 +137,7 @@ def heavy_tail_MNIST_loaders(
     batch_size: int = 64,
     num_workers: int = 0,
     pin_memory: bool = False
-    ) -> tuple[DataLoader, DataLoader]:
+    ) -> tuple[Dataset, Dataset]:
     """
     Creates MNIST DataLoaders where each image is dynamically perturbed
     with sparse FFT noise using a Dataset transform.
@@ -187,25 +187,8 @@ def heavy_tail_MNIST_loaders(
     if num_workers == 0:
        loading_device = "CPU (main process)"
     print(f"Perturbation transform will be applied on: {loading_device} by DataLoader workers")
-
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=batch_size,
-        shuffle=True,
-        num_workers=num_workers,
-        pin_memory=pin_memory
-    )
-
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        num_workers=num_workers,
-        pin_memory=pin_memory
-    )
-
-    print(f"Created DataLoaders with dynamic sparse perturbation transform (density={perturbation_density}, scale={perturbation_scale}).")
-    return train_loader, test_loader
+    
+    return train_dataset, test_dataset
 
 
 if __name__ == '__main__':
@@ -213,20 +196,32 @@ if __name__ == '__main__':
     PERTURB_DENSITY = 0.05 # Perturb 2% of coefficients
     PERTURB_SCALE = 1.0   # Slightly stronger noise
 
+
     print("Creating DataLoaders with dynamic heavy-tail perturbation via Dataset transform...")
-    ht_train_loader_transform, ht_test_loader_transform = heavy_tail_MNIST_loaders(
+    train_dataset, test_dataset = heavy_tail_MNIST_loaders(
         perturbation_density=PERTURB_DENSITY,
         perturbation_scale=PERTURB_SCALE,
         batch_size=BATCH_SIZE,
-        num_workers=2, # Use 2 workers for parallel loading & transform
         pin_memory=torch.cuda.is_available()
     )
-    print("DataLoaders created.")
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        num_workers=2,
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=BATCH_SIZE,
+        shuffle=False,
+        num_workers=2,)
 
     # Get one batch from the training loader to demonstrate
     print("\nFetching one batch from the training loader (using transform)...")
     try:
-        first_batch_images_t, first_batch_labels_t = next(iter(ht_train_loader_transform))
+        first_batch_images_t, first_batch_labels_t = next(iter(train_loader))
 
         print(f"Fetched batch shapes:")
         print(f"  Images: {first_batch_images_t.shape}")
