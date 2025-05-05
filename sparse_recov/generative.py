@@ -191,7 +191,7 @@ ExperimentTypes = {
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
-    'model_type': pd.CategoricalDtype(["perturbed", "trained"]),
+    'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail"]),
 }
 
 
@@ -218,7 +218,7 @@ def make_df():
         'num_repeats_in_optim': [1],
     })
     
-    model_df = pd.DataFrame({'model_type': ["perturbed", "trained"], 'k': [16, 8], 'm': [20, 10]})
+    model_df = pd.DataFrame({'model_type': ["heavy_tail"], 'k': [16], 'm': [20]})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 3000)
 
@@ -318,6 +318,10 @@ def experiment(data: dict) -> dict[str, Any]:
         assert data['k'] == 16
         generator = load_saved_model(
             k=16, file_name="perturbed_model_weights_v4.pth")
+    elif data['model_type'] == "heavy_tail":
+        assert data['k'] == 16
+        generator = load_saved_model(
+            k=16, file_name="heavy_tail_v0.pth")
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
     # Override n because the wavelet transform may change it slightly
