@@ -118,7 +118,7 @@ def sample_wor(p, m):
     assert len(p) >= 1
 
     # Maximum allowed iterations (tuned for reasonable runtime, e.g., ~1 second on typical hardware)
-    MAX_ITERATIONS = 1e7
+    MAX_ITERATIONS = int(1e7)
     # Sort probabilities in descending order
     sorted_p = np.sort(p)[::-1]
     # Estimate probability of sampling remaining indices
@@ -210,13 +210,13 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
             weights = m/n
         else:
             raise NotImplementedError()
-        MAX_NUMTRIES= 1e4
+        MAX_NUMTRIES= int(1e4)
         indices = None
         for i in range(MAX_NUMTRIES):
             indices = np.where(np.random.rand(n) < weights)[0]
             if len(indices) == m:
                 break
-        if indices == None:
+        if indices is None:
             raise ValueError("could not sample conditional Bernoulli")
     else:
         print(sampling_type)

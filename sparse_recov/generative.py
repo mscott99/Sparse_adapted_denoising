@@ -206,7 +206,8 @@ def make_df():
         # 'sampling_type': ['wr'],
         # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
         # 'preconditioned_optimization': [True, False],
-        'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
+        # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
+        'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [False],
         'lr': [0.03],  # Learning rate for optimization

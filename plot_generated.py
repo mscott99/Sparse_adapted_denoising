@@ -8,7 +8,7 @@ import numpy as np
 import seaborn as sns
 
 tail_vae = ConvVAE(k=16)
-tail_state=torch.load("../models/heavy_tail_v2.pth", map_location=torch.device('cpu'))
+tail_state=torch.load("./models/fat_tail.pth", map_location=torch.device('cpu'))
 tail_vae.load_state_dict(tail_state)
 Gtail= tail_vae.decoder
 tco = get_fft_loc_coherences(Gtail)
