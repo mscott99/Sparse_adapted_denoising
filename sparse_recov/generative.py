@@ -321,7 +321,7 @@ def experiment(data: dict) -> dict[str, Any]:
     elif data['model_type'] == "heavy_tail":
         assert data['k'] == 16
         generator = load_saved_model(
-            k=16, file_name="heavy_tail_v0.pth")
+            k=16, file_name="fat_tail.pth")
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
     # Override n because the wavelet transform may change it slightly
