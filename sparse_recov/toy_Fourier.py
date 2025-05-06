@@ -84,32 +84,50 @@ class CustomDataset(Dataset):
 
 class SparseFFTPerturbation:
     """
-    A torchvision-compatible transform that adds sparse complex Gaussian noise
+    A torchvision-compatible transform that adds exactly k complex Gaussian noise entries
     to the 2D FFT coefficients of an image tensor.
 
     Operates on a single image tensor (expected shape [C, H, W]).
     """
-    def __init__(self, density: float, scale: float):
+    def __init__(self, k: int, scale: float):
         """
         Args:
-            density (float): Fraction of FFT coefficients to perturb (0 to 1).
+            k (int): Exact number of FFT coefficients to perturb.
             scale (float): Standard deviation of the complex Gaussian noise.
         """
-        if not 0.0 <= density <= 1.0:
-            raise ValueError("Density must be between 0 and 1.")
-        self.density = density
+        if k < 0:
+            raise ValueError("k must be non-negative.")
+        self.k = k
         self.scale = scale
 
     def _perturb_single_image_sparse(self, image_tensor: torch.Tensor) -> torch.Tensor:
         """Applies sparse FFT perturbation to a single image tensor [C, H, W]."""
         if image_tensor.ndim != 3:
              raise ValueError(f"Input tensor must be 3D ([C, H, W]). Got {image_tensor.ndim}D.")
-        device = image_tensor.device # Perform calculations on the tensor's device
+        
+        device = image_tensor.device
         images_fft = torch.fft.fft2(image_tensor, dim=[-2, -1], norm="ortho")
+        
+        # Total number of elements in FFT
+        total_elements = np.prod(images_fft.shape)
+        
+        # Error check for k
+        if self.k > total_elements:
+            raise ValueError(f"k ({self.k}) cannot exceed total FFT elements ({total_elements})")
+        
+        # Create noise
         noise_real = torch.randn(images_fft.shape, device=device)
         noise_imag = torch.randn(images_fft.shape, device=device)
         complex_noise = self.scale * (noise_real + 1j * noise_imag).to(dtype=torch.complex64)
-        mask = torch.rand(images_fft.shape, device=device) < self.density
+        
+        # Create mask with exactly k ones
+        mask = torch.zeros(images_fft.shape, device=device, dtype=torch.bool)
+        # Flatten indices, shuffle, and select first k
+        flat_indices = torch.randperm(total_elements, device=device)[:self.k]
+        # Convert to unflattened indices
+        indices = np.unravel_index(flat_indices.cpu().numpy(), images_fft.shape)
+        mask[indices] = True
+        
         sparse_complex_noise = complex_noise * mask.to(complex_noise.dtype)
         images_fft_perturbed = images_fft + sparse_complex_noise
         perturbed_image = torch.fft.ifft2(images_fft_perturbed, dim=[-2, -1], norm="ortho").real
@@ -128,10 +146,10 @@ class SparseFFTPerturbation:
         return self._perturb_single_image_sparse(img_tensor)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(density={self.density}, scale={self.scale})"
+        return f"{self.__class__.__name__}(k={self.k}, scale={self.scale})"
 
 def heavy_tail_MNIST_loaders(
-    perturbation_density: float = 0.01,
+    k: int = 100,  # Number of FFT coefficients to perturb
     perturbation_scale: float = 0.5,
     data_dir='./data',
     batch_size: int = 64,
@@ -140,12 +158,12 @@ def heavy_tail_MNIST_loaders(
     ) -> tuple[Dataset, Dataset]:
     """
     Creates MNIST DataLoaders where each image is dynamically perturbed
-    with sparse FFT noise using a Dataset transform.
+    with exactly k sparse FFT noise entries using a Dataset transform.
 
     Parameters:
     -----------
-    perturbation_density : float
-        Fraction of FFT coefficients to perturb (0 to 1, default=0.01).
+    k : int
+        Exact number of FFT coefficients to perturb (default=100).
     perturbation_scale : float
         Scale (std dev) of the random complex Gaussian perturbation (default=0.5).
     data_dir : str
@@ -167,23 +185,23 @@ def heavy_tail_MNIST_loaders(
 
     heavy_tail_transform = transforms.Compose([
         transforms.ToTensor(), # MUST come first
-        SparseFFTPerturbation(density=perturbation_density, scale=perturbation_scale)
+        SparseFFTPerturbation(k=k, scale=perturbation_scale)
     ])
 
     train_dataset = torchvision.datasets.MNIST(
         root=data_dir,
         train=True,
         download=True,
-        transform=heavy_tail_transform # Apply our transform here
+        transform=heavy_tail_transform
     )
     test_dataset = torchvision.datasets.MNIST(
         root=data_dir,
         train=False,
         download=True,
-        transform=heavy_tail_transform # Apply to test set too
+        transform=heavy_tail_transform
     )
 
-    loading_device = "CPU (default)" # Transforms in workers run on CPU
+    loading_device = "CPU (default)"
     if num_workers == 0:
        loading_device = "CPU (main process)"
     print(f"Perturbation transform will be applied on: {loading_device} by DataLoader workers")
@@ -193,13 +211,12 @@ def heavy_tail_MNIST_loaders(
 
 if __name__ == '__main__':
     BATCH_SIZE = 128
-    PERTURB_DENSITY = 0.05 # Perturb 2% of coefficients
-    PERTURB_SCALE = 1.0   # Slightly stronger noise
-
+    K = 3
+    PERTURB_SCALE = 5.0
 
     print("Creating DataLoaders with dynamic heavy-tail perturbation via Dataset transform...")
     train_dataset, test_dataset = heavy_tail_MNIST_loaders(
-        perturbation_density=PERTURB_DENSITY,
+        k=K,
         perturbation_scale=PERTURB_SCALE,
         batch_size=BATCH_SIZE,
         pin_memory=torch.cuda.is_available()
@@ -226,7 +243,6 @@ if __name__ == '__main__':
         print(f"Fetched batch shapes:")
         print(f"  Images: {first_batch_images_t.shape}")
         print(f"  Labels: {first_batch_labels_t.shape}")
-        # Device depends on pin_memory and main process/worker
         print(f"  Images device: {first_batch_images_t.device}")
         print(f"  Labels device: {first_batch_labels_t.device}")
 
@@ -235,11 +251,11 @@ if __name__ == '__main__':
 
         num_images_to_show = 5
         plt.figure(figsize=(10, 3))
-        plt.suptitle(f"Sample Perturbed MNIST (Transform) (Density={PERTURB_DENSITY}, Scale={PERTURB_SCALE})")
+        plt.suptitle(f"Sample Perturbed MNIST (Transform) (k={K}, Scale={PERTURB_SCALE})")
         for i in range(num_images_to_show):
             if i >= first_batch_images_t.shape[0]: break
             ax = plt.subplot(1, num_images_to_show, i + 1)
-            img_to_show = first_batch_images_t[i].squeeze().cpu().numpy() # Move to CPU for numpy/plotting
+            img_to_show = first_batch_images_t[i].squeeze().cpu().numpy()
             plt.imshow(img_to_show, cmap='gray')
             plt.title(f"Label: {first_batch_labels_t[i].item()}")
             plt.axis('off')
