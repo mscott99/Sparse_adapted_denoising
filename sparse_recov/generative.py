@@ -197,37 +197,19 @@ ExperimentTypes = {
 
 def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
-    # df = allcombinations({
-    #     # Number of measurements
-    #     #logspace(2, sqt_n**2/2, 7, integer=True),
-    #     'sigma': [0.0],  # Noise levels
-    #     # Weighted random sampling (fixed as in generative.py)
-    #     # robust sampling schemes
-    #     # 'sampling_type': ['wr'],
-    #     # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
-    #     # 'preconditioned_optimization': [True, False],
-    #     # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
-    #     'sampling_type': ['adjusted_Ber', 'wr', 'wor', 'Ber'],
-    #     'sampling_dist_type': 'optimized',
-    #     'preconditioned_optimization': [False],
-    #     'lr': [0.03],  # Learning rate for optimization
-    #     'beta1': [0.9],
-    #     'beta2': [0.999],
-    #     'max_iter': [1000],  # 15000 more than enough for MNIST recovery.
-    #     'opt_tol_stop': [1e-7],
-    #     # Number of optimization repeats (batch size in recover_signal)
-    #     'num_repeats_in_optim': [1],
-    # })
-    # 
-    # model_df = pd.DataFrame({'model_type': ["heavy_tail"], 'k': [16], 'm': [10]})
-    # df = cross_merge_dfs(df, model_df)
-    # df = repeat(df, 3000)
-
     df = allcombinations({
+        # Number of measurements
+        'm': logspace(2, sqt_n**2/2, 7, integer=True),
         'sigma': [0.0],  # Noise levels
-        'sampling_type': ['adjusted_Ber'],
+        # Weighted random sampling (fixed as in generative.py)
+        # robust sampling schemes
+        # 'sampling_type': ['wr'],
+        # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
+        # 'preconditioned_optimization': [True, False],
+        # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
+        'sampling_type': ['adjusted_Ber', 'wor', 'Ber','wr'],
         'sampling_dist_type': 'optimized',
-        'preconditioned_optimization': [False],
+        'preconditioned_optimization': [True, False],
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
@@ -236,15 +218,15 @@ def make_df():
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
     })
-    model_df_2 = pd.DataFrame({'model_type': ["perturbed", "trained"], 'k': [16, 8], 'm': [20, 10]})
-    df = cross_merge_dfs(df, model_df_2)
-    df = repeat(df, 3000)
+
+    model_df = pd.DataFrame({'model_type': ["heavy_tail"], 'k': [16]})
+    df = cross_merge_dfs(df, model_df)
+    df = repeat(df, 300)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
-    add_standard_attributes(df)
     df.attrs.update({
         'sqt_n': sqt_n,
         'label': 'generative_vanilla',
@@ -363,9 +345,9 @@ def experiment(data: dict) -> dict[str, Any]:
     SDF = SF
     btld = b
     if 'preconditioned_optimization' in data.keys() and data['preconditioned_optimization']:
-        if data['sampling_type'] == 'Ber':
-            raise NotImplementedError(
-                "Bernoulli sampling with preconditioned opt not implemented")
+        # if data['sampling_type'] == 'Ber':
+        #     raise NotImplementedError(
+        #         "Bernoulli sampling with preconditioned opt not implemented")
         dtld = d[indices]
         SDF = preconditionedCSMeasurementMatrix(SF, dtld)
         btld = dtld*b
