@@ -199,7 +199,7 @@ def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': logspace(2, sqt_n**2/2, 7, integer=True),
+        # 'm': logspace(2, sqt_n**2/2, 7, integer=True),
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         # robust sampling schemes
@@ -207,9 +207,9 @@ def make_df():
         # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
-        'sampling_type': ['adjusted_Ber', 'wor', 'Ber','wr'],
+        'sampling_type': ['adjusted_Ber', 'wor'],
         'sampling_dist_type': 'optimized',
-        'preconditioned_optimization': [True, False],
+        'preconditioned_optimization': True,
         'lr': [0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
@@ -219,9 +219,9 @@ def make_df():
         'num_repeats_in_optim': [1],
     })
 
-    model_df = pd.DataFrame({'model_type': ["heavy_tail"], 'k': [16]})
+    model_df = pd.DataFrame({'model_type': ["heavy_tail", "trained"], 'k': [16, 8], 'm':[10, 10]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 300)
+    df = repeat(df, 3000)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
