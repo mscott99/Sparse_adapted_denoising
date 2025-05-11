@@ -22,27 +22,44 @@ def generate_random_signal(generator: Generator, latent_dim: int, device: str = 
         return generator(z)
 
 
+def get_fft_co_with_grad(generator: Generator, num_samples: int = 15, device: str = 'cpu')-> torch.Tensor:
+    codes = torch.randn(num_samples, generator.k, requires_grad = False).to(device)
+    outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
+    outputs_i = outputs.unsqueeze(1)  # (num_samples, 1, 28, 28)
+    outputs_j = outputs.unsqueeze(0)  # (1, num_samples, 28, 28)
+    # (num_samples, num_samples, 28, 28)
+    differences = outputs_i - outputs_j
+    norms = torch.norm(differences, dim=(2, 3, 4), keepdim=True)
+    normalized_diffs = differences / \
+        (norms + 1e-8)  # Avoid division by zero
+
+    # Step 5: Compute FFT of the normalized differences
+    # Convert to complex for FFT
+    coefs = torch.fft.fft2(normalized_diffs, norm="ortho")
+    loc_co = torch.max(torch.abs(coefs), dim=0)[0]  # (num_samples^2, 28, 28)
+    loc_co = torch.max(loc_co, dim=0)[0]
+    return loc_co  # Return as numpy array
+
 def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
                            device: str = 'cpu') -> np.ndarray:
     with torch.no_grad():
         codes = torch.randn(num_samples, generator.k).to(device)
         outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
         # Remove channel dimension (new Generator outputs shape [batch, 1, H, W])
-        outputs = outputs.squeeze(1)  # Shape: (num_samples, 28, 28)
+        # outputs = outputs.squeeze(1)  # Shape: (num_samples, 28, 28)
 
         outputs_i = outputs.unsqueeze(1)  # (num_samples, 1, 28, 28)
         outputs_j = outputs.unsqueeze(0)  # (1, num_samples, 28, 28)
         # (num_samples, num_samples, 28, 28)
         differences = outputs_i - outputs_j
-        norms = torch.norm(differences, dim=(2, 3), keepdim=True)
+        norms = torch.norm(differences, dim=(2, 3, 4), keepdim=True)
         normalized_diffs = differences / \
             (norms + 1e-8)  # Avoid division by zero
 
         # Step 5: Compute FFT of the normalized differences
         # Convert to complex for FFT
         coefs = torch.fft.fft2(normalized_diffs, norm="ortho")
-        loc_co = torch.max(torch.abs(coefs), dim=0)[
-            0]  # (num_samples^2, 28, 28)
+        loc_co = torch.max(torch.abs(coefs), dim=0)[0] # (num_samples^2, 28, 28)
         loc_co = torch.max(loc_co, dim=0)[0]
     return loc_co.cpu().numpy()  # Return as numpy array
 

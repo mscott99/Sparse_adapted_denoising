@@ -234,6 +234,53 @@ if __name__ == '__main__':
         batch_size=BATCH_SIZE,
         shuffle=False,
         num_workers=2,)
+    
+    # Training setup
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    vae = ConvVAE(k=16).to(device)
+    optimizer = optim.Adam(vae.parameters(), lr=1e-3)
+    
+    # Training loop
+    num_epochs = 30
+    for epoch in range(num_epochs):
+        vae.train()
+        epoch_loss = 0
+        recon_loss = 0
+        kl_loss = 0
+        
+        for batch_idx, (data, _) in enumerate(train_loader):
+            data = data.to(device)
+            optimizer.zero_grad()
+            
+            recon_batch, mu, logvar = vae(data)
+            loss = vae_loss(recon_batch, data, mu, logvar)
+            
+            # Store component losses
+            with torch.no_grad():
+                recon = nn.functional.binary_cross_entropy(recon_batch, data, reduction='sum').item()
+                kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()).item()
+                
+            loss.backward()
+            optimizer.step()
+            
+            epoch_loss += loss.item()
+            recon_loss += recon
+            kl_loss += kl
+        
+        if (epoch + 1) % 10 == 0:
+            print(f"Epoch {epoch+1}/{num_epochs}, Loss: {epoch_loss/len(train_loader.dataset):.4f}")
+        
+    return df
+
+# Example usage:
+if __name__ == '__main__':
+    # Train with lowtail noise
+    df_lowtail = train_and_eval_vae('lowtail', k=K, scale=PERTURB_SCALE)
+    
+    # Train with heavytail noise 
+    df_heavytail = train_and_eval_vae('heavytail', l=2, scale=4.0)
+
+
 
     # Get one batch from the training loader to demonstrate
     print("\nFetching one batch from the training loader (using transform)...")

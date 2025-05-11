@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from typing import Tuple, Callable
 import numpy as np
 import pickle
+from .generative import get_fft_co_with_grad
 from sparse_recov.toy_Fourier import high_coherence_MNIST, heavy_tail_MNIST_loaders
 
 
@@ -109,8 +110,10 @@ def vae_loss(recon_x: torch.Tensor, x: torch.Tensor, mu: torch.Tensor, logvar: t
     return recon_loss + kl_loss
 
 
+
+
 def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
-              lr: float = 1e-3, device: str = 'cpu') -> None:
+              lr: float = 1e-3, co_param= 0.0, device: str = 'cpu') -> None:
     """
     Train the convolutional VAE on MNIST.
     """
@@ -125,7 +128,10 @@ def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
             optimizer.zero_grad()
 
             recon_batch, mu, logvar = vae(data)
-            loss = vae_loss(recon_batch, data, mu, logvar)
+            v_loss = vae_loss(recon_batch, data, mu, logvar)
+
+            co_loss = -torch.sum(get_fft_co_with_grad(vae.decoder, 15))
+            loss = v_loss + co_param*co_loss
 
             loss.backward()
             optimizer.step()
@@ -136,7 +142,7 @@ def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
             f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader.dataset):.4f}")
 
 
-def get_trained_generator(latent_dim: int, train_dataset) -> nn.Module:
+def get_trained_generator(latent_dim: int, train_dataset, co_param = 0.0) -> nn.Module:
     """
     Train and return the Generator from a convolutional VAE as a generative model.
 
@@ -155,13 +161,11 @@ def get_trained_generator(latent_dim: int, train_dataset) -> nn.Module:
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Train the VAE
-    train_vae(vae, train_loader, num_epochs=60, device=device)
+    train_vae(vae, train_loader, num_epochs=60, co_param= co_param, device=device)
 
     return vae
 
-
-# Example usage
-if __name__ == "__main__":
+def train_with_heavy_tail_data():
     latent_dim = 16
     # Load MNIST dataset
     # transform = transforms.ToTensor()
@@ -170,4 +174,24 @@ if __name__ == "__main__":
     train_dataset, _ = heavy_tail_MNIST_loaders(0.05, 1.0)
     vae = get_trained_generator(latent_dim, train_dataset)
     torch.save(vae.state_dict(), 'heavy_tail_v0.pth')
+
+def train_with_heavy_tail_loss_co(co_param = 0.5):
+    latent_dim = 16
+    # Load MNIST dataset
+    # transform = transforms.ToTensor()
+    # train_dataset = torchvision.datasets.MNIST(root='./data', train=True,
+    # train_dataset = high_coherence_MNIST(l=2, perturbation_scale=4, batch_size=512)# nine perturbed dimensions
+
+    transf = transforms.Compose([
+        transforms.ToTensor(),
+    ])
+
+    train_dataset = torchvision.datasets.MNIST(
+        root="./data",
+        train=True,
+        download=True,
+        transform=transf
+    )
+    vae = get_trained_generator(latent_dim, train_dataset, co_param = co_param)
+    torch.save(vae.state_dict(), f"heavy_tail_co_v0.pth")
 
