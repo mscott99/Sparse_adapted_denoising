@@ -34,14 +34,15 @@ def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
         outputs_j = outputs.unsqueeze(0)  # (1, num_samples, 28, 28)
         # (num_samples, num_samples, 28, 28)
         differences = outputs_i - outputs_j
-        norms = torch.norm(differences, dim=(2, 3, 4), keepdim=True)
+        norms = torch.norm(differences, p=2, dim=(2, 3, 4), keepdim=True)
         normalized_diffs = differences / \
             (norms + 1e-8)  # Avoid division by zero
 
         # Step 5: Compute FFT of the normalized differences
         # Convert to complex for FFT
         coefs = torch.fft.fft2(normalized_diffs, norm="ortho")
-        loc_co = torch.max(torch.abs(coefs), dim=0)[0] # (num_samples^2, 28, 28)
+        loc_co = torch.max(torch.abs(coefs), dim=0)[
+            0]  # (num_samples^2, 28, 28)
         loc_co = torch.max(loc_co, dim=0)[0]
     return loc_co.cpu().numpy()  # Return as numpy array
 
@@ -218,7 +219,8 @@ def make_df():
         'num_repeats_in_optim': [1],
     })
 
-    model_df = pd.DataFrame({'model_type': ["heavy_tail", "trained"], 'k': [16, 8], 'm':[10, 10]})
+    model_df = pd.DataFrame(
+        {'model_type': ["heavy_tail", "trained"], 'k': [16, 8], 'm': [10, 10]})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 3000)
 
@@ -302,6 +304,7 @@ def load_saved_model(k: int, file_name: str):
 
 
 def experiment(data: dict) -> dict[str, Any]:
+    mistake
     np.random.seed(data['seed'])
     start_time = time()
     sqt_n = int(data['sqt_n'])
