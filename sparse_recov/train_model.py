@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 from typing import Tuple, Callable
 import numpy as np
 import pickle
-from .generative import get_fft_co_with_grad
 from sparse_recov.toy_Fourier import high_coherence_MNIST, heavy_tail_MNIST_loaders
 
 
@@ -52,7 +51,8 @@ class ConvVAE(nn.Module):
     Decoder uses the Generator class to map latent space to images.
     """
     k: int
-    def __init__(self, k: int=8):
+
+    def __init__(self, k: int = 8):
         super(ConvVAE, self).__init__()
         self.k = k
         self.signal_shape = (1, 28, 28)
@@ -110,10 +110,28 @@ def vae_loss(recon_x: torch.Tensor, x: torch.Tensor, mu: torch.Tensor, logvar: t
     return recon_loss + kl_loss
 
 
+def get_fft_co_with_grad(generator: Generator, num_samples: int = 15, device: str = 'cpu') -> torch.Tensor:
+    codes = torch.randn(num_samples, generator.k,
+                        requires_grad=False).to(device)
+    outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
+    outputs_i = outputs.unsqueeze(1)  # (num_samples, 1, 28, 28)
+    outputs_j = outputs.unsqueeze(0)  # (1, num_samples, 28, 28)
+    # (num_samples, num_samples, 28, 28)
+    differences = outputs_i - outputs_j
+    norms = torch.norm(differences,p=2, dim=(2, 3, 4), keepdim=True)
+    normalized_diffs = differences / \
+        (norms + 1e-8)  # Avoid division by zero
+
+    # Step 5: Compute FFT of the normalized differences
+    # Convert to complex for FFT
+    coefs = torch.fft.fft2(normalized_diffs, norm="ortho")
+    loc_co = torch.max(torch.abs(coefs), dim=0)[0]  # (num_samples^2, 28, 28)
+    loc_co = torch.max(loc_co, dim=0)[0]
+    return loc_co  # Return as numpy array
 
 
-def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
-              lr: float = 1e-3, co_param= 0.0, device: str = 'cpu') -> None:
+def train_vae(vae: ConvVAE, train_loader: DataLoader, epochs: int = 20,
+              lr: float = 1e-3, co_param=0.0, device: str = 'cpu', **kwargs) -> None:
     """
     Train the convolutional VAE on MNIST.
     """
@@ -121,7 +139,7 @@ def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
     optimizer = optim.Adam(vae.parameters(), lr=lr)
 
     vae.train()
-    for epoch in range(num_epochs):
+    for epoch in range(epochs):
         total_loss = 0
         for batch_idx, (data, _) in enumerate(train_loader):
             data = data.to(device)
@@ -139,10 +157,10 @@ def train_vae(vae: ConvVAE, train_loader: DataLoader, num_epochs: int = 20,
             total_loss += loss.item()
 
         print(
-            f"Epoch {epoch+1}/{num_epochs}, Loss: {total_loss / len(train_loader.dataset):.4f}")
+            f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(train_loader.dataset):.4f}")
 
 
-def get_trained_generator(latent_dim: int, train_dataset, co_param = 0.0) -> nn.Module:
+def get_trained_generator(latent_dim: int, train_dataset, co_param=0.0, **kwargs) -> nn.Module:
     """
     Train and return the Generator from a convolutional VAE as a generative model.
 
@@ -161,9 +179,10 @@ def get_trained_generator(latent_dim: int, train_dataset, co_param = 0.0) -> nn.
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Train the VAE
-    train_vae(vae, train_loader, num_epochs=60, co_param= co_param, device=device)
+    train_vae(vae, train_loader, co_param=co_param, device=device, **kwargs)
 
     return vae
+
 
 def train_with_heavy_tail_data():
     latent_dim = 16
@@ -175,7 +194,8 @@ def train_with_heavy_tail_data():
     vae = get_trained_generator(latent_dim, train_dataset)
     torch.save(vae.state_dict(), 'heavy_tail_v0.pth')
 
-def train_with_heavy_tail_loss_co(co_param = 0.5):
+
+def train_with_heavy_tail_loss_co(co_param=0.5, **kwargs):
     latent_dim = 16
     # Load MNIST dataset
     # transform = transforms.ToTensor()
@@ -192,6 +212,6 @@ def train_with_heavy_tail_loss_co(co_param = 0.5):
         download=True,
         transform=transf
     )
-    vae = get_trained_generator(latent_dim, train_dataset, co_param = co_param)
+    vae = get_trained_generator(
+        latent_dim, train_dataset, co_param=co_param, **kwargs)
     torch.save(vae.state_dict(), f"heavy_tail_co_v0.pth")
-
