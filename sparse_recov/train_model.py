@@ -195,7 +195,7 @@ def train_with_heavy_tail_data():
     torch.save(vae.state_dict(), 'heavy_tail_v0.pth')
 
 
-def train_with_heavy_tail_loss_co(co_param=0.5, **kwargs):
+def train_with_heavy_tail_loss_co(co_param=0.5, label = "model", **kwargs):
     latent_dim = 16
     # Load MNIST dataset
     # transform = transforms.ToTensor()
@@ -214,4 +214,4 @@ def train_with_heavy_tail_loss_co(co_param=0.5, **kwargs):
     )
     vae = get_trained_generator(
         latent_dim, train_dataset, co_param=co_param, **kwargs)
-    torch.save(vae.state_dict(), f"heavy_tail_co_v0.pth")
+    torch.save(vae.state_dict(), f"{label}.pth")
