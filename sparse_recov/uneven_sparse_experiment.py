@@ -30,8 +30,10 @@ def Haar_local_coherence(sqt_n: int, level: int):
     for i, j in get_representative_points(sqt_n, level):
         img_to_reconstruct.fill(0)
         img_to_reconstruct[i, j] = 1
-        new_co = np.abs(fft2(waverec2(array_to_coeffs(
-            img_to_reconstruct, slices, output_format="wavedec2"), "haar"), norm="ortho"))
+        this_vec = waverec2(array_to_coeffs(
+            img_to_reconstruct, slices, output_format="wavedec2"), "haar")
+        normalized_vec = this_vec/np.sqrt(np.sum(this_vec**2))
+        new_co = np.abs(fft2(normalized_vec, norm = "ortho"))
         max_co = np.maximum(new_co, max_co)
     return max_co
 
