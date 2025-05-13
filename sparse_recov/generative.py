@@ -223,7 +223,7 @@ def make_df():
     model_df = pd.DataFrame(
         {'model_type': ["trained"], 'k': [8]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 3000)
+    df = repeat(df, 3)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
