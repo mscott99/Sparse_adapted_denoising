@@ -3,3 +3,4 @@ data
 models
 *.pickle
 *.pkl
+__pycache__
