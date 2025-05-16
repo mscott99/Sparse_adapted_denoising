@@ -33,13 +33,13 @@ def Haar_local_coherence(sqt_n: int, level: int):
         this_vec = waverec2(array_to_coeffs(
             img_to_reconstruct, slices, output_format="wavedec2"), "haar")
         normalized_vec = this_vec/np.sqrt(np.sum(this_vec**2))
-        new_co = np.abs(fft2(normalized_vec, norm = "ortho"))
+        new_co = np.abs(fft2(normalized_vec, norm="ortho"))
         max_co = np.maximum(new_co, max_co)
     return max_co
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool}
+    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -73,11 +73,17 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'m': logspace(3e2, sqt_n**2*4, 8, integer=True), 'k': [60], 'sigma': [0.0, 0.001, 0.01,  0.1,   0.3, 1.0], 'img': ["camera", "phantom"], "sampling_type": "wr",
-                          "sampling_dist_type": ["uniform", "optimized", "robust"], "preconditioned_optimization": True, "alg": "bpdn_projected"})
+    df = allcombinations({'m': logspace(60, sqt_n**2/2, 7, integer=True),
+                          'k': [60], 'sigma': [0.0],
+                          'img': ["camera", "phantom"],
+                          "sampling_type": ["adjusted_Ber", "wor", "Ber", "wr"],
+                          "sampling_dist_type": ["optimized"],
+                          "preconditioned_optimization": True,
+                          "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
-    df = repeat(df, 2)
+
+    df = repeat(df, 20)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -87,6 +93,7 @@ def make_df():
         {'sqt_n': sqt_n, "max_iter": 1e4, "label": "robust_schemes", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
+
 
 def wavelet_functions(sqt_n, level):
     sample_wavelet, slices = coeffs_to_array(
@@ -100,6 +107,7 @@ def wavelet_functions(sqt_n, level):
         return waverec2(array_to_coeffs(
             w.reshape(theshape), slices, output_format="wavedec2"), "haar")
     return (wavelet_transform, inverse_wavelet, np.prod(theshape))
+
 
 def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
     # Generate the true signal
@@ -117,21 +125,25 @@ def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
     true_signal = true_signal/np.linalg.norm(true_signal)
     return true_signal
 
+
 def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
     sqt_n = int(data['sqt_n'])
     n = sqt_n**2
 
-    wavelet_transform, inverse_wavelet, wav_len =wavelet_functions(sqt_n, data['level'])
-    true_signal = get_sparse_signal(data['k'], sqt_n, data['img'], wavelet_transform, inverse_wavelet)
+    wavelet_transform, inverse_wavelet, wav_len = wavelet_functions(
+        sqt_n, data['level'])
+    true_signal = get_sparse_signal(
+        data['k'], sqt_n, data['img'], wavelet_transform, inverse_wavelet)
 
     # Override n because the wavelet transform may change it slightly.
     m = data['m']
     n = true_signal.size
     loc_co = Haar_local_coherence(sqt_n, data['level'])
-    
-    indices, d = sample_CS_matrix(loc_co, m, data['sampling_type'], data['sampling_dist_type'])
+
+    indices, d = sample_CS_matrix(
+        loc_co, m, data['sampling_type'], data['sampling_dist_type'])
 
     m_tld = indices.size
     SF = SF2_func(indices, m, n)
@@ -165,7 +177,7 @@ def experiment(data: dict) -> dict[str, Any]:
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
         x_hat = inverse_wavelet(np.real(x_haar))
     elif data['alg'] == 'bpdn_projected':
-        assert m > k
+        assert m >= k
         # First run BPDN to get initial solution
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)

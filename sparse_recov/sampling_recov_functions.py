@@ -27,7 +27,7 @@ def SF2_transpose_map(indices, m, n, shape):
 def SDF2_transpose_map(indices, m, n, shape, d):
     m_tld = indices.size
     S_conj = S_transpose(indices, m, m_tld, n)
-    return lambda x: ifft2((d*(S_conj @ x.flat)).reshape(shape), norm="ortho")
+    return lambda x: ifft2(((S_conj @(d[indices] * x.flat))).reshape(shape), norm="ortho")
 
 
 def wr_prob_vec(loc_co):
@@ -83,7 +83,7 @@ def SF2_func(indices: NDArray, m, n):
 
 
 def SDF2_func(indices, m, n, d):
-    return lambda x: np.sqrt(n/m) * (d*fft2(x, norm="ortho").flat)[indices]
+    return lambda x: np.sqrt(n/m) * d[indices] * (fft2(x, norm="ortho").flat)[indices]
 
 
 def half_robust(flat_co):
