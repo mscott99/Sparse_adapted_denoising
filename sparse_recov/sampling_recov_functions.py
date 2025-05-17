@@ -218,6 +218,14 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
                 break
         if indices is None:
             raise ValueError("could not sample conditional Bernoulli")
+    elif sampling_type == "deterministic":
+        assert m <= n, "Bernoulli sampling requires m less than n"
+        weights = np.zeros_like(flat_co)
+        top_m_indices = np.argsort(flat_co)[-m:]  # Get indices of m largest entries
+        weights[top_m_indices] = 1.0
+        d = np.zeros_like(weights)
+        d[weights > 0] = np.sqrt(m / n)
+        indices = np.where(np.random.rand(n) < weights)[0]
     else:
         print(sampling_type)
         raise NotImplementedError()

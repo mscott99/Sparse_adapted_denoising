@@ -64,6 +64,58 @@ def test_generator_integration():
         1, 1, 28, 28), f"Expected output shape (1, 1, 28, 28), got {output.shape}"
     print("Generator integration test passed.")
 
+def test_sample_CS_matrix_deterministic():
+    """
+    Test that sample_CS_matrix produces the correct indices and preconditioning vector d
+    for deterministic sampling on a 2D signal, selecting indices with highest coherence.
+    """
+    # Set random seed for reproducibility
+    np.random.seed(42)
+
+    # Parameters for a 2D signal
+    n1, n2 = 4, 4  # Small dimensions for easy verification
+    n = n1 * n2  # Total number of elements (16)
+    m = 4  # Number of measurements
+
+    # Create a synthetic 2D local coherence array
+    loc_co = np.ones((n1, n2))  # Base coherence of 1.0
+    # Add variation to test deterministic selection
+    loc_co[0, 0] = 4.0  # Highest coherence
+    loc_co[0, 1] = 3.0  # Second highest
+    loc_co[1, 0] = 2.0  # Third highest
+    loc_co[1, 1] = 1.5  # Fourth highest
+
+    # Flatten loc_co for calculations
+    loc_co_flat = loc_co.ravel()
+
+    # Expected indices for deterministic sampling (top m indices with highest coherence)
+    expected_indices = np.argsort(loc_co_flat)[-m:]  # Should be [0, 1, 4, 5]
+    expected_d = np.zeros_like(loc_co_flat)
+    expected_d[expected_indices] = np.sqrt(m / n)  # Preconditioning value for selected indices
+
+    # Run the sampling function
+    sampling_type = "deterministic"
+    sampling_dist_type = "optimized"  # Though not used in deterministic, required by function
+    indices, d = sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type)
+
+    # Basic checks
+    assert isinstance(indices, np.ndarray), "Indices should be a numpy array"
+    assert isinstance(d, np.ndarray), "Preconditioning vector d should be a numpy array"
+    assert indices.size == m, f"Number of indices ({indices.size}) should equal m ({m})"
+    assert d.shape == (n,), f"Preconditioning vector d should have shape ({n},)"
+    assert np.all(indices >= 0) and np.all(indices < n), "Indices should be within [0, n)"
+
+    # Check if indices match the top m coherence locations
+    np.testing.assert_array_equal(
+        np.sort(indices), np.sort(expected_indices),
+        err_msg="Deterministic sampling did not select indices with highest coherence"
+    )
+
+    # Verify d values
+    np.testing.assert_array_almost_equal(
+        d, expected_d, decimal=10,
+        err_msg="Preconditioning vector d does not match expected values for deterministic sampling"
+    )
 
 def test_sample_CS_matrix_wr_optimized():
     """

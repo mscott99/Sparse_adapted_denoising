@@ -185,7 +185,7 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
 ExperimentTypes = {
     'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
     'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
-    'sampling_type': pd.CategoricalDtype(['wr', 'Ber', 'wor', 'adjusted_Ber']),
+    'sampling_type': pd.CategoricalDtype(['wr', 'Ber', 'wor', 'adjusted_Ber', 'deterministic']),
     'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
     'emp_snr': float, 'preconditioned_optimization': bool,
     "opt_tol_stop": float,
@@ -199,8 +199,8 @@ def make_df():
     sqt_n = 28  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        # 'm': logspace(2, sqt_n**2/2, 7, integer=True),
-        'm':10,
+        'm': logspace(2, sqt_n**2/2, 7, integer=True),
+        # 'm':10,
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         # robust sampling schemes
@@ -208,7 +208,7 @@ def make_df():
         # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
-        'sampling_type': ['adjusted_Ber', 'wor'],
+        'sampling_type': ['deterministic'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': True,
         'lr': [0.03],  # Learning rate for optimization
@@ -221,9 +221,9 @@ def make_df():
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["trained"], 'k': [8]})
+        {'model_type': ["trained", "co_heavy_tail"], 'k': [8, 16]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 3)
+    df = repeat(df, 1000)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
