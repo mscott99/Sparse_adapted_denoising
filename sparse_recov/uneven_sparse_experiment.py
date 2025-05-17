@@ -83,7 +83,7 @@ def make_df():
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 20)
+    df = repeat(df, 5)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
