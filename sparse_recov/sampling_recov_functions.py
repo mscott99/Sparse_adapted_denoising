@@ -78,12 +78,15 @@ def SF_func(indices: NDArray, m, n):
     return lambda x: np.sqrt(n/m) * fft(x, norm="ortho")[indices]
 
 
-def SF2_func(indices: NDArray, m, n):
-    return lambda x: np.sqrt(n/m) * fft2(x, norm="ortho").flat[indices]
+def SF2_func(indices: NDArray[np.integer], m, n):
+    def return_fn(x):
+        here = (np.sqrt(n/m) * fft2(x, norm="ortho")).ravel()
+        return here[indices]
+    return return_fn 
 
 
 def SDF2_func(indices, m, n, d):
-    return lambda x: np.sqrt(n/m) * d[indices] * (fft2(x, norm="ortho").flat)[indices]
+    return lambda x: np.sqrt(n/m) * d[indices] * (fft2(x, norm="ortho").ravel())[indices]
 
 
 def half_robust(flat_co):
@@ -151,7 +154,7 @@ def sample_wor(p, m):
         batch_size = max(1, int((m - len(indices)) * 1.5))
 
 
-def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
+def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type)-> Tuple[NDArray[np.integer], NDArray]:
     d = np.array([])
     flat_co = loc_co.ravel()
     n = len(flat_co)
@@ -227,9 +230,8 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type):
         d[weights > 0] = np.sqrt(m / n)
         indices = np.where(np.random.rand(n) < weights)[0]
     else:
-        print(sampling_type)
         raise NotImplementedError()
-    return (indices, d)
+    return (indices.astype(int), d)
 
 
 def soft_threshold(x, lambda_):

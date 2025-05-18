@@ -83,7 +83,7 @@ def make_df():
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 5)
+    df = repeat(df, 10)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -154,9 +154,6 @@ def experiment(data: dict) -> dict[str, Any]:
     b = signal + noise
 
     if data['preconditioned_optimization']:
-        if data['sampling_type'] == 'Ber':
-            raise NotImplementedError(
-                "Bernoulli sampling with preconditioned opt not implemented")
         SDF = SDF2_func(indices, m, n, d)
         SDF_transpose = SDF2_transpose_map(indices, m, n, true_signal.shape, d)
         A = WaveletPartialFourier(indices, wav_len, lambda x: SDF(
@@ -182,7 +179,7 @@ def experiment(data: dict) -> dict[str, Any]:
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
         support = np.argsort(np.abs(x_haar))[-k:]
-        A_support = np.zeros((m, k), dtype=np.complex64)
+        A_support = np.zeros((m_tld, k), dtype=np.complex64)
         for i, idx in enumerate(support):
             basis_vector = np.zeros(n, dtype=np.complex64)
             basis_vector[idx] = 1
@@ -203,7 +200,7 @@ def experiment(data: dict) -> dict[str, Any]:
     # optim_info = {'resid': resid, 'grad': grad, 'info': info}
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
-    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "uneven_on_exactly_sparse",
+    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "sparse_uneven",
                    "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal)}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
