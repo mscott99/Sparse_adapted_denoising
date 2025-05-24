@@ -73,7 +73,7 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'m': logspace(60, sqt_n**2/2, 7, integer=True),
+    df = allcombinations({'m': logspace(60, 2000, 7, integer=True),
                           'k': [60], 'sigma': [0.0],
                           'img': ["camera", "phantom"],
                           "sampling_type": ["adjusted_Ber", "wor", "Ber", "wr"],
