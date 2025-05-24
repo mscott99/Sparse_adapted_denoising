@@ -2,15 +2,15 @@ from seaborn import heatmap
 import torch
 import numpy as np
 from .generative import get_fft_loc_coherences
-from .train_model import Generator
+from .train_model import ConvGenerator
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 
 
-def plot_co(G:Generator):
+def plot_co(G:ConvGenerator):
     heatmap(np.fft.fftshift(get_fft_loc_coherences(G)[0,:,:]), norm=LogNorm())
 
-def show_images(G: Generator, num_images: int = 4, device: str = 'cpu'):
+def show_images(G: ConvGenerator, num_images: int = 4, device: str = 'cpu'):
     # Set the generator to evaluation mode
     G.eval()
     G.to(device)

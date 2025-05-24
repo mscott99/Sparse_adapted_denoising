@@ -1,12 +1,11 @@
-from sparse_recov.conv_vae import get_model, VAE
+from sparse_recov.convvae import VAE, get_model
 import torch
 import matplotlib.pyplot as plt
 
 model = get_model()
 model.decoder_conv
 model.z_dim
-
-model.decoder_conv()
+# reconstructed = model.forward_decoder(z)
 
 # Generate a random sample from the latent space
 z = torch.randn(1, model.z_dim)
@@ -25,4 +24,5 @@ plt.figure(figsize=(5, 5))
 plt.imshow(img)
 plt.title('Reconstructed Image from VAE')
 plt.axis('off')
-plt.show()
+plt.savefig("/home/matthew/current.pdf")
+# plt.show()

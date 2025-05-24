@@ -2,16 +2,16 @@ import torch
 from utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from time import time
 import pandas as pd
-from typing import TypedDict, Literal, Any, Tuple, List, Optional, Union
+from typing import Any, Tuple, Optional, Union
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from numpy.typing import NDArray
-from scipy.sparse.linalg import LinearOperator
-from typing import Tuple, Callable
+from typing import Tuple
 import pickle
 import os
-from .train_model import Generator, ConvVAE
+from .train_model import ConvGenerator, Generator, ConvVAE, VAEWrapper
+from . import convvae
 
 from sparse_recov.sampling_recov_functions import sample_CS_matrix
 
@@ -191,7 +191,7 @@ ExperimentTypes = {
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
-    'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail"]),
+    'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"]),
 }
 
 
@@ -221,7 +221,7 @@ def make_df():
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["trained"], 'k': [8]})
+        {'model_type': ["conv_celeba"]})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 1000)
 
@@ -307,12 +307,13 @@ def load_saved_model(k: int, file_name: str):
 def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
+    return_dict ={}
     sqt_n = int(data['sqt_n'])
     n = sqt_n**2
     m = data['m']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if data['model_type'] == "random":
-        generator = Generator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
+        generator = ConvGenerator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
     elif data['model_type'] == "trained":
         assert data['k'] == 8
         generator = load_saved_model(k=8, file_name="model_weights.pth")
@@ -328,8 +329,11 @@ def experiment(data: dict) -> dict[str, Any]:
         assert data['k'] == 16
         generator = load_saved_model(
             k=16, file_name="heavy_tail_co_v0.pth")
+    elif data['model_type'] == "conv_celeba":
+        generator = VAEWrapper(convvae.get_model())
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
+    return_dict['k'] = generator.k
     # Override n because the wavelet transform may change it slightly
     loc_co = get_fft_loc_coherences(generator)
     indices, d = sample_CS_matrix(

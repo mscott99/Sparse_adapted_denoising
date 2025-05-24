@@ -8,9 +8,33 @@ from typing import Tuple, Callable
 import numpy as np
 import pickle
 from sparse_recov.toy_Fourier import high_coherence_MNIST, heavy_tail_MNIST_loaders
+from abc import ABC, abstractmethod
+from .convvae import VAE
 
+class Generator(nn.Module, ABC):
+    k: int
+    output_shape: Tuple
+    @abstractmethod
+    def forward(self, z: torch.Tensor) -> torch.Tensor:
+       """Decode a code to an image."""
+       pass
 
-class Generator(nn.Module):
+class VAEWrapper(Generator):
+    def __init__(self, vae:VAE):
+        super().__init__()
+        self.decoder_linear = vae.decoder_linear
+        self.decoder_conv = vae.decoder_conv
+        self.k = vae.z_dim
+        self.conv_out_shape = vae.conv_out_shape
+        self.output_shape = vae.input_shape
+
+    def forward(self, z:torch.Tensor)-> torch.Tensor:
+        z = self.decoder_linear(z)
+        z = z.view(z.size()[0], *self.conv_out_shape[1:])
+        z = self.decoder_conv(z)
+        return z
+
+class ConvGenerator(Generator):
     """
     A generative neural network using transpose convolutions for compressed sensing.
     Maps a latent Gaussian vector to a signal of shape (batch_size, 1, 28, 28).
@@ -19,7 +43,7 @@ class Generator(nn.Module):
     output_shape: Tuple
 
     def __init__(self, k: int, output_shape: Tuple, hidden_channels: list = [64, 32, 1]):
-        super(Generator, self).__init__()
+        super(ConvGenerator, self).__init__()
         self.k = k
         self.output_shape = output_shape
 
@@ -75,7 +99,7 @@ class ConvVAE(nn.Module):
         self.fc_logvar = nn.Linear(256, k)
 
         # Decoder: Use Generator class
-        self.decoder = Generator(k=self.k, output_shape=(
+        self.decoder = ConvGenerator(k=self.k, output_shape=(
             28, 28), hidden_channels=[256, 512, 1024])
 
     def encode(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -110,7 +134,7 @@ def vae_loss(recon_x: torch.Tensor, x: torch.Tensor, mu: torch.Tensor, logvar: t
     return recon_loss + kl_loss
 
 
-def get_fft_co_with_grad(generator: Generator, num_samples: int = 15, device: str = 'cpu') -> torch.Tensor:
+def get_fft_co_with_grad(generator: ConvGenerator, num_samples: int = 15, device: str = 'cpu') -> torch.Tensor:
     codes = torch.randn(num_samples, generator.k,
                         requires_grad=False).to(device)
     outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)

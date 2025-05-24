@@ -1,7 +1,7 @@
 import pytest
 import torch
 import numpy as np
-from sparse_recov.generative import Generator, generate_random_signal, get_fft_loc_coherences, CSMeasurementMatrix, recover_signal, make_df, experiment, sample_CS_matrix
+from sparse_recov.generative import ConvGenerator, generate_random_signal, get_fft_loc_coherences, CSMeasurementMatrix, recover_signal, make_df, experiment, sample_CS_matrix
 from sparse_recov.train_model import ConvVAE
 from sparse_recov.toy_Fourier import high_coherence_MNIST
 from sparse_recov.sampling_recov_functions import half_robust
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 def generator():
     latent_dim = 10
     output_shape = (4, 4)  # Small size for quick testing
-    return Generator(k=latent_dim, output_shape=output_shape)
+    return ConvGenerator(k=latent_dim, output_shape=output_shape)
 
 
 def test_experiment():
@@ -232,14 +232,14 @@ def test_recover_signal(generator):
     n = np.prod(signal_shape)
     m = 8
     indices = torch.arange(0, n, n // m)
-    A = CSMeasurementMatrix(indices, m, signal_shape, preconditioned=False)
+    A = CSMeasurementMatrix(indices, m, signal_shape)
 
     # Generate a true signal and measurements
     true_signal = generate_random_signal(generator, latent_dim)
     b = A(true_signal)  # CSMeasurementMatrix now handles the channel dimension
 
     # Recover signal with lower iterations for test
-    recovered_signal, _, _ = recover_signal(
+    recovered_signal, _, _, _ = recover_signal(
         generator, A, b, latent_dim, lr=0.01, num_iterations=10, batch_size=2)
 
     # Check output type and shape - recover_signal will remove channel dimension

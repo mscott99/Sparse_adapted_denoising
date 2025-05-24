@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms, utils
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 import argparse
 

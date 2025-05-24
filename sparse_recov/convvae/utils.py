@@ -7,4 +7,5 @@ def get_model():
     dump = torch.load("./models/vae-200.dat", map_location=device)
     vae = model.VAE(dump['input_shape'], dump['z_dim']).to(device)
     vae.load_state_dict(dump['state_dict'])
+    vae.requires_grad_(False)
     return vae
