@@ -16,14 +16,15 @@ from . import convvae
 from sparse_recov.sampling_recov_functions import sample_CS_matrix
 
 
-def generate_random_signal(generator: Generator, latent_dim: int, device: str = 'cpu') -> torch.Tensor:
+def generate_random_signal(generator: Generator, latent_dim: int, device = torch.device("cuda") if torch.cuda.is_available() else "cpu") -> torch.Tensor:
     with torch.no_grad():
         z = torch.randn(1, latent_dim).to(device)
         return generator(z)
 
 
 def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
-                           device: str = 'cpu') -> np.ndarray:
+                           device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+) -> np.ndarray:
     with torch.no_grad():
         codes = torch.randn(num_samples, generator.k).to(device)
         outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
@@ -312,6 +313,7 @@ def experiment(data: dict) -> dict[str, Any]:
     n = sqt_n**2
     m = data['m']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    input_shape = (sqt_n, sqt_n)
     if data['model_type'] == "random":
         generator = ConvGenerator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
     elif data['model_type'] == "trained":
@@ -331,11 +333,12 @@ def experiment(data: dict) -> dict[str, Any]:
             k=16, file_name="heavy_tail_co_v0.pth")
     elif data['model_type'] == "conv_celeba":
         generator = VAEWrapper(convvae.get_model())
+        input_shape = generator.output_shape
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
-    return_dict['k'] = generator.k
+    return_dict['k'] = data['k'] = generator.k
     # Override n because the wavelet transform may change it slightly
-    loc_co = get_fft_loc_coherences(generator)
+    loc_co = get_fft_loc_coherences(generator, device = device)
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
     if "prec_exponent" in data:
@@ -346,7 +349,7 @@ def experiment(data: dict) -> dict[str, Any]:
     true_signal = generate_random_signal(generator, data['k']).to(device)
 
     # Signal acquisition
-    SF = CSMeasurementMatrix(indices, m, (sqt_n, sqt_n)).to(device)
+    SF = CSMeasurementMatrix(indices, m, input_shape[1:]).to(device)
     signal = SF(true_signal)
     noise = torch.tensor(
         1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
