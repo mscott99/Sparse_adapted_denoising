@@ -1,4 +1,5 @@
 import torch
+from torchvision import datasets, transforms, utils
 from utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from time import time
 import pandas as pd
@@ -193,6 +194,8 @@ ExperimentTypes = {
     "beta1": float,
     "beta2": float,
     'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"]),
+    'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
+    'dataset': pd.CategoricalDtype(["CELEBA, MNIST"])
 }
 
 
@@ -209,6 +212,8 @@ def make_df():
         # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
+        'dataset': 'celeba',
+        'true_signal_dist': 'train',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': True,
@@ -346,7 +351,21 @@ def experiment(data: dict) -> dict[str, Any]:
     d = torch.tensor(d).to(device)
     m_tld = indices.size
 
-    true_signal = generate_random_signal(generator, data['k']).to(device)
+    true_signal = None
+    if data["true_signal_dist"] == "random":
+        true_signal = generate_random_signal(generator, data['k']).to(device)
+    elif data["true_signal_dist"] in ["test", "train"]:
+        assert "dataset" in data
+        if data["dataset"]== "CELEBA":
+            train_transforms = transforms.Compose([
+                transforms.Resize((128, 112)),
+                transforms.ToTensor(),
+            ])
+            train_data = datasets.ImageFolder("./datasets", transform=train_transforms)
+            true_signal = train_data.samples[0][0]
+            # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
+        else:
+            raise NotImplementedError("Implement dataset: "+ data["dataset"])
 
     # Signal acquisition
     SF = CSMeasurementMatrix(indices, m, input_shape[1:]).to(device)
