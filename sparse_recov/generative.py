@@ -196,10 +196,10 @@ ExperimentTypes = {
 
 
 def make_df():
-    sqt_n = 28  # Fixed image size, matching sparse experiment
+    n = 112*128*3  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': logspace(sqt_n, sqt_n**2, 4, integer=True),
+        'm': logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
@@ -223,17 +223,17 @@ def make_df():
     model_df = pd.DataFrame(
         {'model_type': ["conv_celeba"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 1000)
+    df = repeat(df, 1)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     df.attrs.update({
-        'sqt_n': sqt_n,
+        'sqt_n': int(np.sqrt(n)),
         'label': 'generative_vanilla',
         'global_seed': global_seed,
-        'save_img': False,
+        'save_img': True,
         'save_sampling': False,
         'save_opt_data': True
     })
