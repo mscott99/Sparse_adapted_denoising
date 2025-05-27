@@ -120,7 +120,7 @@ class preconditionedCSMeasurementMatrix(nn.Module):
 
 
 def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, preconditionedCSMeasurementMatrix], b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, NDArray, float]:
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, NDArray, float, bool, int]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -151,7 +151,9 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
     true_signal = true_signal
     true_sig_norm = torch.norm(true_signal)
     # Optimization loop
-    for _ in range(num_iterations):
+    tol_stopped=False
+    last_iter = 0
+    for i in range(num_iterations):
         optimizer.zero_grad()
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
@@ -160,11 +162,14 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
         test_losses.append(
             (torch.norm(x_tensor - true_signal)/true_sig_norm).item())
         if tol_stop != None and loss < tol_stop:
+            tol_stopped = True
+            last_iter = i
             break
         # Backpropagate and update z
         loss.backward()
         optimizer.step()
-
+    if last_iter == 0:
+        last_iter = num_iterations
     # Final signal recovery
     with torch.no_grad():
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
@@ -181,7 +186,7 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
         else:
             recovered_signal = recovered.squeeze(0)  # Shape: (height, width)
 
-    return recovered_signal, np.array(losses), np.array(test_losses), smallest_loss
+    return recovered_signal, np.array(losses), np.array(test_losses), smallest_loss, tol_stopped, last_iter
 
 
 ExperimentTypes = {
@@ -203,7 +208,7 @@ def make_df():
     n = 112*128*3  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': logspace(n/2, n, 3, integer=True),
+        'm': n,# logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
@@ -213,14 +218,14 @@ def make_df():
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'dataset': 'celeba',
-        'true_signal_dist': 'train',
+        'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
-        'preconditioned_optimization': True,
-        'lr': [0.03],  # Learning rate for optimization
+        'preconditioned_optimization': [True,False],
+        'lr': [0.001, 0.01, 0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [10000],  # 15000 more than enough for MNIST recovery.
+        'max_iter': [5000], 
         'opt_tol_stop': [1e-5],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
@@ -351,12 +356,13 @@ def experiment(data: dict) -> dict[str, Any]:
     d = torch.tensor(d).to(device)
     m_tld = indices.size
 
-    true_signal = None
-    if data["true_signal_dist"] == "random":
+    if "true_signal_dist" not in data or data["true_signal_dist"] == "random":
         true_signal = generate_random_signal(generator, data['k']).to(device)
     elif data["true_signal_dist"] in ["test", "train"]:
+        raise NotImplementedError("Only random is implemented")
         assert "dataset" in data
         if data["dataset"]== "CELEBA":
+            n= 128*112*3
             train_transforms = transforms.Compose([
                 transforms.Resize((128, 112)),
                 transforms.ToTensor(),
@@ -366,6 +372,8 @@ def experiment(data: dict) -> dict[str, Any]:
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
             raise NotImplementedError("Implement dataset: "+ data["dataset"])
+    else:
+        raise NotImplementedError()
 
     # Signal acquisition
     SF = CSMeasurementMatrix(indices, m, input_shape[1:]).to(device)
@@ -384,7 +392,7 @@ def experiment(data: dict) -> dict[str, Any]:
         SDF = preconditionedCSMeasurementMatrix(SF, dtld)
         btld = dtld*b
 
-    x_hat, opt_data, test_losses, smallest_loss = recover_signal(
+    x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = recover_signal(
         generator, SDF, btld, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
 
     true_signal = true_signal.cpu().numpy()
@@ -400,7 +408,8 @@ def experiment(data: dict) -> dict[str, Any]:
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
     return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "generative", "m_tld": m_tld,
-                   'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss}
+                   'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss, "tol_stopped":tol_stopped,
+                   "last_tol_iter": last_opt_iter, 'n':n}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
