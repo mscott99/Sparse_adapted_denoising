@@ -3,6 +3,7 @@ from seaborn import relplot
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def discrepancy(this_df):
     stats = this_df.groupby("sampling_type").agg({"re":["std", "count", "mean"]})['re']
