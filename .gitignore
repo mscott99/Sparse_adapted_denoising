@@ -2,9 +2,13 @@ venv
 data
 datasets
 models
+.venv
+.venv/*
+*.pth
 *.ipynb
 *.mchat
 *.pdf
 *.pickle
 *.pkl
 __pycache__
+results
