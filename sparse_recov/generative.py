@@ -91,13 +91,12 @@ class CSMeasurementMatrix(nn.Module):
 
         # Handle case with channel dimension (new Generator output)
         if len(x.shape) == 4:  # (batch, channel, height, width)
-            assert x.shape[2:
-                           ] == self.signal_shape, f"Input shape {x.shape[2:]} must match {self.signal_shape}"
+            assert x.shape[1:
+                           ] == self.signal_shape, f"Input shape {x.shape[1:]} must match {self.signal_shape}"
             # Use only the first channel for FFT
             x = x.squeeze(1)  # (batch, height, width)
         else:  # Original case (batch, height, width)
-            assert x.shape[1:
-                           ] == self.signal_shape, f"Input shape {x.shape[1:]} must match {self.signal_shape}"
+            assert x.shape == self.signal_shape, f"Input shape {x.shape} must match {self.signal_shape}"
 
         # (batch, height, width), complex
         x_fft = torch.fft.fft2(x, norm="ortho")
@@ -201,7 +200,7 @@ ExperimentTypes = {
     "beta2": float,
     'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"]),
     'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
-    'dataset': pd.CategoricalDtype(["CELEBA, MNIST"])
+    'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"])
 }
 
 
@@ -272,7 +271,7 @@ def experiment(data: dict) -> dict[str, Any]:
     n = sqt_n**2
     m = data['m']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    input_shape = (sqt_n, sqt_n)
+    input_shape = (1, sqt_n, sqt_n)
     if data['model_type'] == "random":
         generator = ConvGenerator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
     elif data['model_type'] == "trained":
@@ -317,22 +316,23 @@ def experiment(data: dict) -> dict[str, Any]:
                 transforms.ToTensor(),
             ])
             full_data = datasets.ImageFolder(
-                "./datasets", transform=train_transforms)
+                "./datasets/celeba", transform=train_transforms)
             # Sample one random image from the dataset
             if data["true_signal_dist"] == "train":
                 random_idx = np.random.randint(0, int(len(full_data)*0.8))
             else:
                 random_idx = np.random.randint(int(len(full_data)*0.8), len(full_data))
             true_signal, _ = full_data[random_idx]
-            true_signal = true_signal.to(device)
+            true_signal = true_signal.unsqueeze(0).to(device)
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
-            raise NotImplementedError("Implement dataset: " + data["dataset"])
+            raise NotImplementedError("Implement dataset: ", data["dataset"])
     else:
         raise NotImplementedError()
 
     # Signal acquisition
-    SF = CSMeasurementMatrix(indices, m, input_shape[1:]).to(device)
+    print(true_signal.shape)
+    SF = CSMeasurementMatrix(indices, m, input_shape).to(device)
     signal = SF(true_signal)
     noise = torch.tensor(
         1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
