@@ -142,6 +142,7 @@ def recover_signal(generator: Generator, A:Callable, b: torch.Tensor,
 
     # Initialize latent vector z from N(0,1) as a trainable parameter
     z = torch.randn(batch_size, k, requires_grad=True, device=device)
+    b = b.unsqueeze(0)
     optimizer = optim.Adam([z], lr=lr, betas=(beta1, beta2))
     losses = []
     test_losses = []
@@ -152,7 +153,10 @@ def recover_signal(generator: Generator, A:Callable, b: torch.Tensor,
         optimizer.zero_grad()
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
-        loss = torch.sum(offset.real**2 + offset.imag**2)
+        if offset.is_complex():
+            loss = torch.sum(offset.real**2 + offset.imag**2)
+        else:
+            loss = torch.sum(offset**2)
         losses.append(loss.detach().cpu().numpy())
         if true_signal != None:
             test_losses.append(
@@ -167,20 +171,20 @@ def recover_signal(generator: Generator, A:Callable, b: torch.Tensor,
     if last_iter == 0:
         last_iter = num_iterations
     # Final signal recovery
+    
     with torch.no_grad():
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
-        loss = torch.sum(offset.real**2 + offset.imag**2, dim=1, keepdim=False)
+        if offset.is_complex():
+            loss = torch.sum(offset.real**2 + offset.imag**2, dim=tuple(range(1, b.ndim)), keepdim=False)
+        else:
+            loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
         best = torch.argmax(loss)
         smallest_loss = torch.max(loss).item()
         # Get recovered signal and remove channel dimension if present
         # Shape: (1, 1, height, width)
         recovered = generator(z[best, :].unsqueeze(0))
-        if recovered.dim() == 4:
-            recovered_signal = recovered.squeeze(
-                0).squeeze(0)  # Shape: (height, width)
-        else:
-            recovered_signal = recovered.squeeze(0)  # Shape: (height, width)
+        recovered_signal = recovered.squeeze(0)
 
     return_test_losses = None if true_signal == None else np.array(test_losses)
     return recovered_signal, np.array(losses), return_test_losses, smallest_loss, tol_stopped, last_iter
@@ -270,6 +274,7 @@ def experiment(data: dict) -> dict[str, Any]:
     n = sqt_n**2
     m = data['m']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
     input_shape = (1, sqt_n, sqt_n)
     if data['model_type'] == "random":
         generator = ConvGenerator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
@@ -294,6 +299,7 @@ def experiment(data: dict) -> dict[str, Any]:
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
     return_dict['k'] = data['k'] = generator.k
+    generator.to(device) 
     # Override n because the wavelet transform may change it slightly
     loc_co = get_fft_loc_coherences(generator, device=device)
     indices, d = sample_CS_matrix(
@@ -322,9 +328,9 @@ def experiment(data: dict) -> dict[str, Any]:
             else:
                 random_idx = np.random.randint(int(len(full_data)*0.8), len(full_data))
             true_signal, _ = full_data[random_idx]
-            true_signal = true_signal.unsqueeze(0).to(device)
+            true_signal = true_signal.to(device)
             if "project_to_prior" in data and data['project_to_prior']:
-                true_signal, _,_,_,_,_ = recover_signal(generator, torch.nn.Identity, true_signal, data['k'], num_iterations = 1000, batch_size=2)
+                true_signal, _,_,_,_,_ = recover_signal(generator, torch.nn.Identity(), true_signal, data['k'], num_iterations = 1000, batch_size=2, device=device)
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
             raise NotImplementedError("Implement dataset: ", data["dataset"])
@@ -333,7 +339,7 @@ def experiment(data: dict) -> dict[str, Any]:
 
     # Signal acquisition
     SF = CSMeasurementMatrix(indices, m, input_shape).to(device)
-    signal = SF(true_signal)
+    signal = SF(true_signal.unsqueeze(0)).squeeze(0)
     noise = torch.tensor(
         1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
     b = signal + noise
