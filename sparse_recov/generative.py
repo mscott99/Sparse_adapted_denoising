@@ -181,14 +181,14 @@ def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
         else:
             loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
         best = torch.argmax(loss)
-        smallest_loss = torch.max(loss).item()
+        smallest_loss = torch.min(loss).item()
         # Get recovered signal and remove channel dimension if present
         # Shape: (1, 1, height, width)
         recovered = generator(z[best, :].unsqueeze(0))
         recovered_signal = recovered.squeeze(0)
 
-    return_test_losses = None if true_signal == None else np.array(test_losses)
-    return recovered_signal, np.array(losses), return_test_losses, smallest_loss, tol_stopped, last_iter
+    returned_test_losses = None if true_signal == None else np.array(test_losses)
+    return recovered_signal, np.array(losses), returned_test_losses, smallest_loss, tol_stopped, last_iter
 
 
 ExperimentTypes = {
@@ -225,20 +225,20 @@ def make_df():
         'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
-        'preconditioned_optimization': [True, False],
-        'lr': [0.001, 0.01, 0.03],  # Learning rate for optimization
+        'preconditioned_optimization': [True],
+        'lr': [0.01],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [20000],
+        'max_iter': [3000],
         'opt_tol_stop': [1e-5],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [1],  # is failing
+        'num_repeats_in_optim': [1, 5],  # is failing
     })
 
     model_df = pd.DataFrame(
         {'model_type': ["trained"], 'k': 8})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 40)
+    df = repeat(df, 20)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
