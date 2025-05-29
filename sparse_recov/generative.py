@@ -232,7 +232,7 @@ def make_df():
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["trained"]})
+        {'model_type': ["trained"], 'k':8})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 1)
 
