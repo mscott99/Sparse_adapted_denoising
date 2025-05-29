@@ -221,10 +221,10 @@ def make_df():
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
-        'lr': [0.03],  # Learning rate for optimization
+        'lr': [0.01],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [5000],
+        'max_iter': [10000],
         'opt_tol_stop': [1e-5],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
@@ -233,7 +233,7 @@ def make_df():
     model_df = pd.DataFrame(
         {'model_type': ["conv_celeba"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 1)
+    df = repeat(df, 5)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
@@ -332,7 +332,6 @@ def experiment(data: dict) -> dict[str, Any]:
         raise NotImplementedError()
 
     # Signal acquisition
-    print(true_signal.shape)
     SF = CSMeasurementMatrix(indices, m, input_shape).to(device)
     signal = SF(true_signal)
     noise = torch.tensor(
