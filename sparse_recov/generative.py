@@ -217,7 +217,7 @@ def make_df():
         # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
-        'dataset': 'celeba',
+        'dataset': 'MNIST',
         'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
@@ -232,7 +232,7 @@ def make_df():
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["conv_celeba"]})
+        {'model_type': ["trained"]})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 1)
 
