@@ -228,7 +228,7 @@ def make_df():
         'lr': [0.01],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [10000],
+        'max_iter': [2000],
         'opt_tol_stop': [1e-5],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
@@ -274,7 +274,6 @@ def experiment(data: dict) -> dict[str, Any]:
     n = sqt_n**2
     m = data['m']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
     input_shape = (1, sqt_n, sqt_n)
     if data['model_type'] == "random":
         generator = ConvGenerator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
