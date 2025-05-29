@@ -221,23 +221,23 @@ def make_df():
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'dataset': 'CELEBA',
         'true_signal_dist': 'train',
-        'project_to_prior': True,
+        'project_to_prior': [True],
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
-        'lr': [0.01],  # Learning rate for optimization
+        'lr': [0.005],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [2000],
+        'max_iter': [20000],
         'opt_tol_stop': [1e-5],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [1],
+        'num_repeats_in_optim': [1], # is failing
     })
 
     model_df = pd.DataFrame(
         {'model_type': ["conv_celeba"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 5)
+    df = repeat(df, 40)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
@@ -329,7 +329,7 @@ def experiment(data: dict) -> dict[str, Any]:
             true_signal, _ = full_data[random_idx]
             true_signal = true_signal.to(device)
             if "project_to_prior" in data and data['project_to_prior']:
-                true_signal, _,_,_,_,_ = recover_signal(generator, torch.nn.Identity(), true_signal, data['k'], num_iterations = 1000, batch_size=2, device=device)
+                true_signal, _,_,_,_,_ = recover_signal(generator, torch.nn.Identity(), true_signal, data['k'], num_iterations = 1000, batch_size=1, device=device)
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
             raise NotImplementedError("Implement dataset: ", data["dataset"])
@@ -374,6 +374,7 @@ def experiment(data: dict) -> dict[str, Any]:
                    "last_tol_iter": last_opt_iter, 'n': n}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
+        return_dict['true_signal'] = true_signal
     if 'save_sampling' in data and data['save_sampling']:
         return_dict['indices'] = indices
     if 'save_opt_data' in data and data['save_opt_data']:
