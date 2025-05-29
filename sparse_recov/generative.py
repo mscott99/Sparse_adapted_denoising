@@ -118,7 +118,7 @@ class preconditionedCSMeasurementMatrix(nn.Module):
         return self.dtld * self.SF.forward(x)
 
 
-def recover_signal(generator: Generator, A:Callable, b: torch.Tensor,
+def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
                    k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, Optional[NDArray], float, bool, int]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
@@ -171,12 +171,13 @@ def recover_signal(generator: Generator, A:Callable, b: torch.Tensor,
     if last_iter == 0:
         last_iter = num_iterations
     # Final signal recovery
-    
+
     with torch.no_grad():
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
         if offset.is_complex():
-            loss = torch.sum(offset.real**2 + offset.imag**2, dim=tuple(range(1, b.ndim)), keepdim=False)
+            loss = torch.sum(offset.real**2 + offset.imag**2,
+                             dim=tuple(range(1, b.ndim)), keepdim=False)
         else:
             loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
         best = torch.argmax(loss)
@@ -207,10 +208,10 @@ ExperimentTypes = {
 
 
 def make_df():
-    n = 112*128*3  # Fixed image size, matching sparse experiment
+    # n = 112*128*3  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': n,  # logspace(n/2, n, 3, integer=True),
+        'm': 28**2,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
@@ -219,23 +220,23 @@ def make_df():
         # 'sampling_dist_type': ['optimized', 'robust', 'half_robust'],
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
-        'dataset': 'CELEBA',
-        'true_signal_dist': 'train',
         'project_to_prior': [True],
+        'dataset': 'MNIST',
+        'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
-        'preconditioned_optimization': [True],
-        'lr': [0.005],  # Learning rate for optimization
+        'preconditioned_optimization': [True, False],
+        'lr': [0.001, 0.01, 0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
         'max_iter': [20000],
         'opt_tol_stop': [1e-5],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [1], # is failing
+        'num_repeats_in_optim': [1],  # is failing
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["conv_celeba"]})
+        {'model_type': ["trained"], 'k': 8})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 40)
 
@@ -244,7 +245,7 @@ def make_df():
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     df.attrs.update({
-        'sqt_n': int(np.sqrt(n)),
+        'sqt_n': 28,
         'label': 'generative_vanilla',
         'global_seed': global_seed,
         'save_img': True,
@@ -298,7 +299,7 @@ def experiment(data: dict) -> dict[str, Any]:
     else:
         raise ValueError("model_type can only be 'random' or 'trained'")
     return_dict['k'] = data['k'] = generator.k
-    generator.to(device) 
+    generator.to(device)
     # Override n because the wavelet transform may change it slightly
     loc_co = get_fft_loc_coherences(generator, device=device)
     indices, d = sample_CS_matrix(
@@ -325,11 +326,13 @@ def experiment(data: dict) -> dict[str, Any]:
             if data["true_signal_dist"] == "train":
                 random_idx = np.random.randint(0, int(len(full_data)*0.8))
             else:
-                random_idx = np.random.randint(int(len(full_data)*0.8), len(full_data))
+                random_idx = np.random.randint(
+                    int(len(full_data)*0.8), len(full_data))
             true_signal, _ = full_data[random_idx]
             true_signal = true_signal.to(device)
             if "project_to_prior" in data and data['project_to_prior']:
-                true_signal, _,_,_,_,_ = recover_signal(generator, torch.nn.Identity(), true_signal, data['k'], num_iterations = 1000, batch_size=1, device=device)
+                true_signal, _, _, _, _, _ = recover_signal(generator, torch.nn.Identity(
+                ), true_signal, data['k'], num_iterations=1000, batch_size=1, device=device)
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
             raise NotImplementedError("Implement dataset: ", data["dataset"])
