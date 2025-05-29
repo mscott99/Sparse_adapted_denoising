@@ -17,15 +17,16 @@ from . import convvae
 from sparse_recov.sampling_recov_functions import sample_CS_matrix
 
 
-def generate_random_signal(generator: Generator, latent_dim: int, device = torch.device("cuda") if torch.cuda.is_available() else "cpu") -> torch.Tensor:
+def generate_random_signal(generator: Generator, latent_dim: int, device=torch.device("cuda") if torch.cuda.is_available() else "cpu") -> torch.Tensor:
     with torch.no_grad():
         z = torch.randn(1, latent_dim).to(device)
         return generator(z)
 
 
 def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
-                           device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-) -> np.ndarray:
+                           device=torch.device(
+                               "cuda" if torch.cuda.is_available() else "cpu")
+                           ) -> np.ndarray:
     with torch.no_grad():
         codes = torch.randn(num_samples, generator.k).to(device)
         outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
@@ -90,8 +91,8 @@ class CSMeasurementMatrix(nn.Module):
 
         # Handle case with channel dimension (new Generator output)
         if len(x.shape) == 4:  # (batch, channel, height, width)
-            assert x.shape[2:
-                           ] == self.signal_shape, f"Input shape {x.shape[2:]} must match {self.signal_shape}"
+            assert x.shape[1:
+                           ] == self.signal_shape, f"Input shape {x.shape[1:]} must match {self.signal_shape}"
             # Use only the first channel for FFT
             x = x.squeeze(1)  # (batch, height, width)
         else:  # Original case (batch, height, width)
@@ -151,7 +152,7 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
     true_signal = true_signal
     true_sig_norm = torch.norm(true_signal)
     # Optimization loop
-    tol_stopped=False
+    tol_stopped = False
     last_iter = 0
     for i in range(num_iterations):
         optimizer.zero_grad()
@@ -200,15 +201,16 @@ ExperimentTypes = {
     "beta2": float,
     'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"]),
     'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
-    'dataset': pd.CategoricalDtype(["CELEBA, MNIST"])
+    'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"])
 }
 
 
 def make_df():
-    n = 112*128*3  # Fixed image size, matching sparse experiment
+    # n = 112*128*3  # Fixed image size, matching sparse experiment
+    sqrt_n = 28
     df = allcombinations({
         # Number of measurements
-        'm': n,# logspace(n/2, n, 3, integer=True),
+        'm': sqrt_n**2,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
@@ -221,18 +223,18 @@ def make_df():
         'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
-        'preconditioned_optimization': [True,False],
+        'preconditioned_optimization': [True, False],
         'lr': [0.001, 0.01, 0.03],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [5000], 
+        'max_iter': [5000],
         'opt_tol_stop': [1e-5],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["trained"], 'k':8})
+        {'model_type': ["trained"], 'k': 8})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 1)
 
@@ -241,7 +243,7 @@ def make_df():
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     df.attrs.update({
-        'sqt_n': int(np.sqrt(n)),
+        'sqt_n': sqrt_n,
         'label': 'generative_vanilla',
         'global_seed': global_seed,
         'save_img': True,
@@ -318,12 +320,12 @@ def load_saved_model(k: int, file_name: str):
 def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
-    return_dict ={}
+    return_dict = {}
     sqt_n = int(data['sqt_n'])
     n = sqt_n**2
     m = data['m']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    input_shape = (sqt_n, sqt_n)
+    input_shape = (1,sqt_n, sqt_n)
     if data['model_type'] == "random":
         generator = ConvGenerator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
     elif data['model_type'] == "trained":
@@ -348,7 +350,7 @@ def experiment(data: dict) -> dict[str, Any]:
         raise ValueError("model_type can only be 'random' or 'trained'")
     return_dict['k'] = data['k'] = generator.k
     # Override n because the wavelet transform may change it slightly
-    loc_co = get_fft_loc_coherences(generator, device = device)
+    loc_co = get_fft_loc_coherences(generator, device=device)
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
     if "prec_exponent" in data:
@@ -361,22 +363,23 @@ def experiment(data: dict) -> dict[str, Any]:
     elif data["true_signal_dist"] in ["test", "train"]:
         raise NotImplementedError("Only random is implemented")
         assert "dataset" in data
-        if data["dataset"]== "CELEBA":
-            n= 128*112*3
+        if data["dataset"] == "CELEBA":
+            n = 128*112*3
             train_transforms = transforms.Compose([
                 transforms.Resize((128, 112)),
                 transforms.ToTensor(),
             ])
-            train_data = datasets.ImageFolder("./datasets", transform=train_transforms)
+            train_data = datasets.ImageFolder(
+                "./datasets", transform=train_transforms)
             true_signal = train_data.samples[0][0]
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
-            raise NotImplementedError("Implement dataset: "+ data["dataset"])
+            raise NotImplementedError("Implement dataset: " + data["dataset"])
     else:
         raise NotImplementedError()
 
     # Signal acquisition
-    SF = CSMeasurementMatrix(indices, m, input_shape[1:]).to(device)
+    SF = CSMeasurementMatrix(indices, m, input_shape).to(device)
     signal = SF(true_signal)
     noise = torch.tensor(
         1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
@@ -408,8 +411,8 @@ def experiment(data: dict) -> dict[str, Any]:
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
     return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "generative", "m_tld": m_tld,
-                   'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss, "tol_stopped":tol_stopped,
-                   "last_tol_iter": last_opt_iter, 'n':n}
+                   'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss, "tol_stopped": tol_stopped,
+                   "last_tol_iter": last_opt_iter, 'n': n}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
