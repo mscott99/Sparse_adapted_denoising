@@ -3,13 +3,12 @@ from torchvision import datasets, transforms, utils
 from utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from time import time
 import pandas as pd
-from typing import Any, Tuple, Optional, Union
+from typing import Any, Tuple, Optional, Callable, Optional
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 from numpy.typing import NDArray
 from typing import Tuple
-import pickle
 import os
 from .train_model import ConvGenerator, Generator, ConvVAE, VAEWrapper
 from . import convvae
@@ -119,8 +118,8 @@ class preconditionedCSMeasurementMatrix(nn.Module):
         return self.dtld * self.SF.forward(x)
 
 
-def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, preconditionedCSMeasurementMatrix], b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, NDArray, float, bool, int]:
+def recover_signal(generator: Generator, A:Callable, b: torch.Tensor,
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, Optional[NDArray], float, bool, int]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -138,8 +137,6 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
     """
     # Move models to device
     generator.to(device)
-    A.to(device)
-
     for param in generator.parameters():
         param.requires_grad = False
 
@@ -148,8 +145,6 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
     optimizer = optim.Adam([z], lr=lr, betas=(beta1, beta2))
     losses = []
     test_losses = []
-    true_signal = true_signal
-    true_sig_norm = torch.norm(true_signal)
     # Optimization loop
     tol_stopped = False
     last_iter = 0
@@ -159,8 +154,9 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
         offset = A(x_tensor) - b
         loss = torch.sum(offset.real**2 + offset.imag**2)
         losses.append(loss.detach().cpu().numpy())
-        test_losses.append(
-            (torch.norm(x_tensor - true_signal)/true_sig_norm).item())
+        if true_signal != None:
+            test_losses.append(
+                (torch.norm(x_tensor - true_signal)/torch.norm(true_signal)).item())
         if tol_stop != None and loss < tol_stop:
             tol_stopped = True
             last_iter = i
@@ -186,7 +182,8 @@ def recover_signal(generator: Generator, A: Union[CSMeasurementMatrix, precondit
         else:
             recovered_signal = recovered.squeeze(0)  # Shape: (height, width)
 
-    return recovered_signal, np.array(losses), np.array(test_losses), smallest_loss, tol_stopped, last_iter
+    return_test_losses = None if true_signal == None else np.array(test_losses)
+    return recovered_signal, np.array(losses), return_test_losses, smallest_loss, tol_stopped, last_iter
 
 
 ExperimentTypes = {
@@ -200,7 +197,8 @@ ExperimentTypes = {
     "beta2": float,
     'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"]),
     'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
-    'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"])
+    'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"]),
+    'project_to_prior': bool,
 }
 
 
@@ -219,6 +217,7 @@ def make_df():
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'dataset': 'CELEBA',
         'true_signal_dist': 'train',
+        'project_to_prior': True,
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
@@ -324,6 +323,8 @@ def experiment(data: dict) -> dict[str, Any]:
                 random_idx = np.random.randint(int(len(full_data)*0.8), len(full_data))
             true_signal, _ = full_data[random_idx]
             true_signal = true_signal.unsqueeze(0).to(device)
+            if "project_to_prior" in data and data['project_to_prior']:
+                true_signal, _,_,_,_,_ = recover_signal(generator, torch.nn.Identity, true_signal, data['k'], num_iterations = 1000, batch_size=2)
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
             raise NotImplementedError("Implement dataset: ", data["dataset"])
@@ -347,7 +348,8 @@ def experiment(data: dict) -> dict[str, Any]:
         dtld = d[indices]
         SDF = preconditionedCSMeasurementMatrix(SF, dtld)
         btld = dtld*b
-
+    SDF.to(device)
+    btld.to(device)
     x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = recover_signal(
         generator, SDF, btld, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
 
