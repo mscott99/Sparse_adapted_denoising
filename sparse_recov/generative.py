@@ -18,7 +18,7 @@ from sparse_recov.sampling_recov_functions import sample_CS_matrix
 
 def generate_random_signal(generator: Generator, latent_dim: int, device=torch.device("cuda") if torch.cuda.is_available() else "cpu") -> torch.Tensor:
     with torch.no_grad():
-        z = torch.randn(latent_dim).to(device)
+        z = torch.randn(1, latent_dim).to(device)
         return generator(z)
 
 
@@ -167,7 +167,7 @@ def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
             last_iter = i
             break
         # Backpropagate and update z
-        loss.backward()
+        loss.sum().backward()
         optimizer.step()
     if last_iter == 0:
         last_iter = num_iterations
