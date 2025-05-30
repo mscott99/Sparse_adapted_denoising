@@ -18,7 +18,7 @@ from sparse_recov.sampling_recov_functions import sample_CS_matrix
 
 def generate_random_signal(generator: Generator, latent_dim: int, device=torch.device("cuda") if torch.cuda.is_available() else "cpu") -> torch.Tensor:
     with torch.no_grad():
-        z = torch.randn(1, latent_dim).to(device)
+        z = torch.randn(latent_dim).to(device)
         return generator(z)
 
 
@@ -154,14 +154,15 @@ def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
         x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
         offset = A(x_tensor) - b
         if offset.is_complex():
-            loss = torch.sum(offset.real**2 + offset.imag**2)
+            loss = torch.sum(offset.real**2 + offset.imag**2,
+                             dim=tuple(range(1, b.ndim)), keepdim=False)
         else:
-            loss = torch.sum(offset**2)
+            loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
         losses.append(loss.detach().cpu().numpy())
         if true_signal != None:
             test_losses.append(
-                (torch.norm(x_tensor - true_signal)/torch.norm(true_signal)).item())
-        if tol_stop != None and loss < tol_stop:
+                (torch.norm(torch.mean(x_tensor, dim=0, keepdim=False) - true_signal)/torch.norm(true_signal)).mean().item())
+        if tol_stop != None and loss.min() < tol_stop:
             tol_stopped = True
             last_iter = i
             break
@@ -180,7 +181,7 @@ def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
                              dim=tuple(range(1, b.ndim)), keepdim=False)
         else:
             loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
-        best = torch.argmax(loss)
+        best = torch.argmin(loss)
         smallest_loss = torch.min(loss).item()
         # Get recovered signal and remove channel dimension if present
         # Shape: (1, 1, height, width)
@@ -230,7 +231,7 @@ def make_df():
         'beta1': [0.9],
         'beta2': [0.999],
         'max_iter': [3000],
-        'opt_tol_stop': [1e-5],
+        'opt_tol_stop': [1e-8],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1, 5],  # is failing
     })
@@ -310,7 +311,7 @@ def experiment(data: dict) -> dict[str, Any]:
     m_tld = indices.size
 
     if "true_signal_dist" not in data or data["true_signal_dist"] == "random":
-        true_signal = generate_random_signal(generator, data['k']).to(device)
+        true_signal = generate_random_signal(generator, data['k']).to(device).squeeze(0)
     elif data["true_signal_dist"] in ["test", "train"]:
         # raise NotImplementedError("Only random is implemented")
         assert "dataset" in data
