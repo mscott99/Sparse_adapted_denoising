@@ -18,7 +18,7 @@ from sparse_recov.sampling_recov_functions import sample_CS_matrix
 
 def generate_random_signal(generator: Generator, latent_dim: int, device=torch.device("cuda") if torch.cuda.is_available() else "cpu") -> torch.Tensor:
     with torch.no_grad():
-        z = torch.randn(latent_dim).to(device)
+        z = torch.randn(1, latent_dim).to(device)
         return generator(z)
 
 
@@ -167,7 +167,7 @@ def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
             last_iter = i
             break
         # Backpropagate and update z
-        loss.backward()
+        loss.sum().backward()
         optimizer.step()
     if last_iter == 0:
         last_iter = num_iterations
@@ -222,7 +222,7 @@ def make_df():
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'project_to_prior': [True],
-        'dataset': 'MNIST',
+        'dataset': 'CELEBA',
         'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
@@ -230,16 +230,16 @@ def make_df():
         'lr': [0.01],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [3000],
+        'max_iter': [10000],
         'opt_tol_stop': [1e-8],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [1, 5],  # is failing
+        'num_repeats_in_optim': [1, 10],  # is failing
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["trained"], 'k': 8})
+        {'model_type': ["conv_celeba"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 20)
+    df = repeat(df, 10)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
