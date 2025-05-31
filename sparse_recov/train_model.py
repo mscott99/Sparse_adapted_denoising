@@ -207,6 +207,16 @@ def get_trained_generator(latent_dim: int, train_dataset, co_param=0.0, **kwargs
 
     return vae
 
+def vanilla_train_vae(label="MNIST_VAE_"):
+    latent_dim = 16
+    vae = ConvVAE(k=latent_dim)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
+    train_dataset = torchvision.datasets.MNIST("./data", train=True, transform=transforms.ToTensor())
+    vae = get_trained_generator(
+            latent_dim, train_dataset)
+    torch.save(vae.state_dict(), f"./models/{label}-{latent_dim}.pth")
+    
 
 def train_with_heavy_tail_data():
     latent_dim = 16

@@ -202,7 +202,7 @@ ExperimentTypes = {
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
-    'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"]),
+    'model_type': 'str',
     'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
     'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"]),
     'project_to_prior': bool,
@@ -238,7 +238,7 @@ def make_df():
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["conv_celeba"]})
+        {'model_type': ["MNIST_vae_16"], 'k': 16})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 10)
 
@@ -299,6 +299,8 @@ def experiment(data: dict) -> dict[str, Any]:
         generator = VAEWrapper(convvae.get_model())
         input_shape = generator.output_shape
     else:
+        generator = load_saved_model(
+            k=16, file_name=data['model_type'])
         raise ValueError("model_type can only be 'random' or 'trained'")
     return_dict['k'] = data['k'] = generator.k
     generator.to(device)
