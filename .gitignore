@@ -1,4 +1,6 @@
 venv
+runs
+*.dat
 data
 datasets
 models

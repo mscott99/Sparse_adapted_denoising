@@ -55,7 +55,7 @@ def main():
         transforms.ToTensor(),
     ])
     # train_data = datasets.ImageFolder(data_dir, transform=train_transforms)
-    train_data = CelebA(data_dir, target_type = [], split="train", transform = train_transforms, download = False)
+    train_data = CelebA(data_dir, target_type = "identity", split="train", transform = train_transforms, download = True)
     trainloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True)
 
     images, labels = next(iter(trainloader))
@@ -66,7 +66,7 @@ def main():
     print(vae)          # print for feedback
 
     # load previous weights (if any)
-    if args.load is not '':
+    if args.load != '':
         vae.load_state_dict(torch.load(args.load)['state_dict'])
         print("Weights loaded: {}".format(args.load))
 
@@ -84,7 +84,7 @@ def main():
     vae.train()
     for e in range(args.epochs):
         epoch_loss = []
-        for images, labels in trainloader:
+        for images, _ in trainloader:
             images_v = images.to(device)
 
             optimizer.zero_grad()
