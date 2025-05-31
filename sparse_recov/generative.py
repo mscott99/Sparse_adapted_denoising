@@ -202,7 +202,7 @@ ExperimentTypes = {
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
-    'model_type': 'str',
+    'model_type': 'str', #pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"])
     'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
     'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"]),
     'project_to_prior': bool,
@@ -223,7 +223,7 @@ def make_df():
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'project_to_prior': [True],
-        'dataset': 'CELEBA',
+        'dataset': 'MNIST',
         'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
@@ -231,14 +231,14 @@ def make_df():
         'lr': [0.01],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [10000],
+        'max_iter': [1000],
         'opt_tol_stop': [1e-8],
         # Number of optimization repeats (batch size in recover_signal)
         'num_repeats_in_optim': [1],  # is failing
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["MNIST_vae_16"], 'k': 16})
+        {'model_type': ["MNIST_vae_16", "co_heavy_tail"], 'k':[16, 16]})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 10)
 
