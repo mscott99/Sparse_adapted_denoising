@@ -29,7 +29,8 @@ def generate_random_signal(generator: Generator, latent_dim: int, device=torch.d
 def recover_signal(generator: Generator, target_signal: torch.Tensor, latent_dim: int, 
                    lr: float = 0.01, num_iterations: int = 1000, batch_size: int = 5, 
                    tol_stop: Optional[float] = 1e-7, beta1: float = 0.9, beta2: float = 0.999,
-                   device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, np.ndarray, float, bool, int]:
+                   device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), 
+                   log_interval: int = 100) -> Tuple[torch.Tensor, np.ndarray, float, bool, int]:
     """
     Recover the latent vector that generates a signal close to the target signal using gradient descent.
     
@@ -43,10 +44,11 @@ def recover_signal(generator: Generator, target_signal: torch.Tensor, latent_dim
         tol_stop: Tolerance for early stopping based on loss.
         beta1, beta2: Adam optimizer parameters.
         device: Device to perform computation on.
+        log_interval: Interval at which to log the loss during optimization.
     
     Returns:
         recovered_signal: Recovered signal as a torch tensor.
-        losses: Array of loss values over iterations.
+        losses: Array of loss values over iterations (logged at log_interval).
         smallest_loss: Final smallest loss value achieved.
         tol_stopped: Boolean indicating if optimization stopped due to tolerance.
         last_iter: Number of iterations performed.
@@ -66,13 +68,15 @@ def recover_signal(generator: Generator, target_signal: torch.Tensor, latent_dim
     for i in range(num_iterations):
         optimizer.zero_grad()
         generated_signal = generator(z)
-        loss = torch.sum((generated_signal - target_signal) ** 2, dim=tuple(range(1, target_signal.ndim)), keepdim=False)
-        losses.append(np.sqrt(loss.detach().cpu().numpy())/signal_size)
-        if tol_stop is not None and loss.min() < tol_stop:
+        loss_array = torch.sum((generated_signal - target_signal) ** 2, dim=tuple(range(1, target_signal.ndim+1)), keepdim=False)
+        if tol_stop is not None and loss_array.min() < tol_stop:
             tol_stopped = True
             last_iter = i
             break
-        loss.sum().backward()
+        loss = loss_array.sum()
+        if i % log_interval == 0:
+            losses.append(np.sqrt(loss_array.mean().detach().cpu().numpy())/signal_size)
+        loss.backward()
         optimizer.step()
 
     if last_iter == 0:

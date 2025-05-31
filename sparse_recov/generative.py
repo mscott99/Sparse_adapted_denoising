@@ -228,9 +228,9 @@ def make_df():
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
-        'lr': [0.0001, 0,.001, 0.01, 0.1, 1.0],  # Learning rate for optimization
-        'beta1': [0.5, 0.9, 0.99],
-        'beta2': [0.999, 0.99],
+        'lr': [0,.001, 0.01, 0.1],  # Learning rate for optimization
+        'beta1': [0.9, 0.999],
+        'beta2': [0.999, 0.9],
         'max_iter': [10000],
         'opt_tol_stop': [1e-8],
         # Number of optimization repeats (batch size in recover_signal)
