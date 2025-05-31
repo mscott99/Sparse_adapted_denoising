@@ -4,7 +4,7 @@ from matplotlib.colors import LogNorm
 import seaborn as sns
 import numpy as np
 import pandas as pd
-from utils_data import repeat, soft_astype_df
+from utils.utils_data import repeat, soft_astype_df
 import matplotlib.pyplot as plt
 
 df = pd.read_pickle("./data/jan_2025_21.pickle")

@@ -1,4 +1,5 @@
 # from .uneven_sparse_experiment import make_df, experiment
+from .convvae import get_model
 from .toy_generative import make_df, experiment
 from .train_model import ConvVAE
 # from .generative import make_df, experiment, get_fft_loc_coherences, ConvGenerator, ExperimentTypes

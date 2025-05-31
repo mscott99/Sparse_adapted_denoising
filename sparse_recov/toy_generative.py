@@ -16,7 +16,7 @@ def recover_signal(generator: Generator, encoder, target_signal: torch.Tensor, l
                    lr: float = 0.01, num_iterations: int = 1000, batch_size: int = 5, 
                    tol_stop: Optional[float] = 1e-7, beta1: float = 0.9, beta2: float = 0.999,
                    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), 
-                   log_interval: int = 100) -> Tuple[torch.Tensor, np.ndarray, float, bool, int]:
+                   log_interval: int = 100, starting_code:Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, np.ndarray, float, bool, int]:
     """
     Recover the latent vector that generates a signal close to the target signal using gradient descent.
     

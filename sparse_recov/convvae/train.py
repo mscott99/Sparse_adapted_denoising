@@ -2,12 +2,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
+from torchvision.datasets.celeba import CelebA
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms, utils
-# from tensorboardX import SummaryWriter
+from tensorboardX import SummaryWriter
 
 import argparse
 
@@ -53,8 +54,8 @@ def main():
         transforms.Resize((128, 112)),
         transforms.ToTensor(),
     ])
-
-    train_data = datasets.ImageFolder(data_dir, transform=train_transforms)
+    # train_data = datasets.ImageFolder(data_dir, transform=train_transforms)
+    train_data = CelebA(data_dir, target_type = [], split="train", transform = train_transforms, download = False)
     trainloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True)
 
     images, labels = next(iter(trainloader))
