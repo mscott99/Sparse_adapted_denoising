@@ -100,7 +100,7 @@ def make_df():
         pd.DataFrame: DataFrame containing experiment parameters.
     """
     df = allcombinations({
-        'lr': [0.1, 1.0, 10.0, 0.0005],  # Learning rate for optimization
+        'lr': [0.001],  # Learning rate for optimization
         'beta1': [0.9],  # Adam optimizer parameter
         'beta2': [0.999],  # Adam optimizer parameter
         'max_iter': [10000],  # Maximum number of iterations
