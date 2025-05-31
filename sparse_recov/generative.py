@@ -119,7 +119,7 @@ class preconditionedCSMeasurementMatrix(nn.Module):
 
 
 def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, Optional[NDArray], float, bool, int]:
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), log_interval = 100) -> Tuple[torch.Tensor, NDArray, Optional[NDArray], float, bool, int]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -158,10 +158,11 @@ def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
                              dim=tuple(range(1, b.ndim)), keepdim=False)
         else:
             loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
-        losses.append(loss.detach().cpu().numpy())
-        if true_signal != None:
-            test_losses.append(
-                (torch.norm(torch.mean(x_tensor, dim=0, keepdim=False) - true_signal)/torch.norm(true_signal)).mean().item())
+        if i % log_interval == 0:
+            losses.append(loss.detach().cpu().numpy())
+            if true_signal != None:
+                test_losses.append(
+                    (torch.norm(torch.mean(x_tensor, dim=0, keepdim=False) - true_signal)/torch.norm(true_signal)).mean().item())
         if tol_stop != None and loss.min() < tol_stop:
             tol_stopped = True
             last_iter = i
