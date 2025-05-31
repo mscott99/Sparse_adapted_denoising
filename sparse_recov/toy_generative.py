@@ -6,6 +6,7 @@ import pandas as pd
 from typing import Tuple, Dict, Any, Optional
 import os
 from time import time
+from utils.utils_data import allcombinations, repeat
 from torchvision import datasets, transforms
 from sparse_recov.generative import ConvGenerator, Generator, VAEWrapper
 from sparse_recov import convvae
@@ -76,7 +77,7 @@ def recover_signal(generator: Generator, target_signal: torch.Tensor, latent_dim
         loss = loss_array.sum()
         if i % log_interval == 0:
             losses.append(np.sqrt(loss_array.mean().detach().cpu().numpy())/signal_size)
-        loss.backward()
+        loss.log().backward()
         optimizer.step()
 
     if last_iter == 0:
@@ -98,18 +99,17 @@ def make_df():
     Returns:
         pd.DataFrame: DataFrame containing experiment parameters.
     """
-    df = pd.DataFrame({
-        'lr': [0.01],  # Learning rate for optimization
+    df = allcombinations({
+        'lr': [0.001, 0.01],  # Learning rate for optimization
         'beta1': [0.9],  # Adam optimizer parameter
         'beta2': [0.999],  # Adam optimizer parameter
-        'max_iter': [1000],  # Maximum number of iterations
+        'max_iter': [100000],  # Maximum number of iterations
         'opt_tol_stop': [1e-8],  # Tolerance for early stopping
-        'num_repeats_in_optim': [5],  # Batch size for optimization (number of parallel attempts)
+        'num_repeats_in_optim': [1],  # Batch size for optimization (number of parallel attempts)
         'model_type': ['conv_celeba'],  # Model type for the generator
         'dataset': ['CELEBA'],  # Dataset used for signal generation
     })
-
-    df = pd.concat([df] * 20, ignore_index=True)  # Repeat experiments for multiple trials
+    df = repeat(df, 30)
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
