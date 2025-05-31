@@ -11,7 +11,6 @@ from torchvision import datasets, transforms
 from sparse_recov.generative import ConvGenerator, Generator, VAEWrapper
 from sparse_recov import convvae
 
-
 def recover_signal(generator: Generator, encoder, target_signal: torch.Tensor, latent_dim: int, 
                    lr: float = 0.01, num_iterations: int = 1000, batch_size: int = 5, 
                    tol_stop: Optional[float] = 1e-7, beta1: float = 0.9, beta2: float = 0.999,
