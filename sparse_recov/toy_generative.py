@@ -80,7 +80,7 @@ def recover_signal(generator: Generator, target_signal: torch.Tensor, latent_dim
 
     with torch.no_grad():
         generated_signal = generator(z)
-        loss = torch.sum((generated_signal - target_signal) ** 2, dim=tuple(range(1, target_signal.ndim)), keepdim=False)
+        loss = torch.sum((generated_signal - target_signal) ** 2, dim=tuple(range(1, target_signal.ndim + 1)), keepdim=False)
         best = torch.argmin(loss)
         smallest_loss = torch.min(loss).item()
         recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(0)
