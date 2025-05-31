@@ -6,7 +6,7 @@ from typing import Any, Tuple, List
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
 from pywt import wavedec2, waverec2, coeffs_to_array, array_to_coeffs
-from utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
+from utils.utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from scipy.fft import fft2
 import spgl1
 

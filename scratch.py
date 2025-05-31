@@ -1,6 +1,6 @@
 import torch
 from torchvision import datasets, transforms, utils
-from utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
+from utils.utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from time import time
 import pandas as pd
 from typing import Any, Tuple, Optional, Union

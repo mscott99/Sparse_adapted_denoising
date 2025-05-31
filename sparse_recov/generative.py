@@ -1,6 +1,6 @@
 import torch
 from torchvision import datasets, transforms, utils
-from utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
+from utils.utils_data import cross_merge_dfs, logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
 from time import time
 import pandas as pd
 from typing import Any, Tuple, Optional, Callable, Optional
@@ -119,7 +119,7 @@ class preconditionedCSMeasurementMatrix(nn.Module):
 
 
 def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")) -> Tuple[torch.Tensor, NDArray, Optional[NDArray], float, bool, int]:
+                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), log_interval = 100) -> Tuple[torch.Tensor, NDArray, Optional[NDArray], float, bool, int]:
     """
     Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
 
@@ -158,10 +158,11 @@ def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
                              dim=tuple(range(1, b.ndim)), keepdim=False)
         else:
             loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
-        losses.append(loss.detach().cpu().numpy())
-        if true_signal != None:
-            test_losses.append(
-                (torch.norm(torch.mean(x_tensor, dim=0, keepdim=False) - true_signal)/torch.norm(true_signal)).mean().item())
+        if i % log_interval == 0:
+            losses.append(loss.detach().cpu().numpy())
+            if true_signal != None:
+                test_losses.append(
+                    (torch.norm(torch.mean(x_tensor, dim=0, keepdim=False) - true_signal)/torch.norm(true_signal)).mean().item())
         if tol_stop != None and loss.min() < tol_stop:
             tol_stopped = True
             last_iter = i
@@ -201,7 +202,7 @@ ExperimentTypes = {
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
-    'model_type': pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"]),
+    'model_type': 'str',
     'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
     'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"]),
     'project_to_prior': bool,
@@ -222,7 +223,7 @@ def make_df():
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'project_to_prior': [True],
-        'dataset': 'MNIST',
+        'dataset': 'CELEBA',
         'true_signal_dist': 'random',
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
@@ -230,16 +231,16 @@ def make_df():
         'lr': [0.01],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [3000],
+        'max_iter': [10000],
         'opt_tol_stop': [1e-8],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [1, 5],  # is failing
+        'num_repeats_in_optim': [1],  # is failing
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["trained"], 'k': 8})
+        {'model_type': ["MNIST_vae_16"], 'k': 16})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 20)
+    df = repeat(df, 10)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
@@ -298,6 +299,8 @@ def experiment(data: dict) -> dict[str, Any]:
         generator = VAEWrapper(convvae.get_model())
         input_shape = generator.output_shape
     else:
+        generator = load_saved_model(
+            k=16, file_name=data['model_type'])
         raise ValueError("model_type can only be 'random' or 'trained'")
     return_dict['k'] = data['k'] = generator.k
     generator.to(device)
