@@ -228,19 +228,19 @@ def make_df():
         'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
-        'lr': [0.01],  # Learning rate for optimization
-        'beta1': [0.9],
-        'beta2': [0.999],
+        'lr': [0.0001, 0,.001, 0.01, 0.1, 1.0],  # Learning rate for optimization
+        'beta1': [0.5, 0.9, 0.99],
+        'beta2': [0.999, 0.99],
         'max_iter': [10000],
         'opt_tol_stop': [1e-8],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [1, 10],  # is failing
+        'num_repeats_in_optim': [1],  # is failing
     })
 
     model_df = pd.DataFrame(
         {'model_type': ["conv_celeba"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 10)
+    df = repeat(df, 3)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
