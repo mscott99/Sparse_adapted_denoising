@@ -65,15 +65,17 @@ def main():
     vae = model.VAE(input_shape[-3:], args.z_dim).to(device)
     print(vae)          # print for feedback
 
+    optimizer = optim.Adam(vae.parameters(), lr=args.lr)
     # load previous weights (if any)
-    if args.load != '':
-        vae.load_state_dict(torch.load(args.load)['state_dict'])
+    if args.load is not '':
+        dump = torch.load(args.load)
+        vae.load_state_dict(dump['state_dict'])
+        if "opt_state" in dump:
+            optimizer.load_state_dict(dump['opt_state'])
         print("Weights loaded: {}".format(args.load))
 
     # create tensorboard writer
     writer = SummaryWriter(comment='-' + 'VAE' + str(args.z_dim))
-
-    optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
     # generate random points in latent space so we can see how the network is training
     latent_space_test_points = np.random.normal(scale=1.0, size=(16, args.z_dim))
@@ -109,7 +111,7 @@ def main():
         else:
             training_losses.append(np.mean(epoch_loss))
             if min(training_losses) == training_losses[-1]:
-                vae.save('vae-' + str(args.z_dim) + '.dat')
+                vae.save('vae-' + str(args.z_dim) + '.dat', opt_state=optimizer.state_dict())
 
             vae.eval()
 
