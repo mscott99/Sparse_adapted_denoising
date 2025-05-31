@@ -51,6 +51,7 @@ def recover_signal(generator: Generator, target_signal: torch.Tensor, latent_dim
         tol_stopped: Boolean indicating if optimization stopped due to tolerance.
         last_iter: Number of iterations performed.
     """
+    signal_size = torch.norm(target_signal).detach().cpu().numpy()
     generator.to(device)
     for param in generator.parameters():
         param.requires_grad = False
@@ -66,7 +67,7 @@ def recover_signal(generator: Generator, target_signal: torch.Tensor, latent_dim
         optimizer.zero_grad()
         generated_signal = generator(z)
         loss = torch.sum((generated_signal - target_signal) ** 2, dim=tuple(range(1, target_signal.ndim)), keepdim=False)
-        losses.append(loss.detach().cpu().numpy())
+        losses.append(np.sqrt(loss.detach().cpu().numpy())/signal_size)
         if tol_stop is not None and loss.min() < tol_stop:
             tol_stopped = True
             last_iter = i
