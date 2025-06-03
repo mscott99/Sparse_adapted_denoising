@@ -1,7 +1,7 @@
 import pytest
 import torch
 import numpy as np
-from sparse_recov.generative import ConvGenerator, generate_random_signal, get_fft_loc_coherences, CSMeasurementMatrix, recover_signal, make_df, experiment, sample_CS_matrix
+from sparse_recov.generative import ConvGenerator, generate_random_signal, get_fft_loc_coherences, SubsampledFourierMatrix, recover_signal, make_df, experiment, sample_CS_matrix
 from sparse_recov.train_model import ConvVAE
 from sparse_recov.toy_Fourier import high_coherence_MNIST
 from sparse_recov.sampling_recov_functions import half_robust
@@ -211,7 +211,7 @@ def test_cs_measurement_matrix_forward():
     n = np.prod(signal_shape)
     m = 8
     indices = torch.arange(0, n, n // m)  # Simple uniform sampling for test
-    A = CSMeasurementMatrix(indices, m, signal_shape, preconditioned=False)
+    A = SubsampledFourierMatrix(indices, m, signal_shape, preconditioned=False)
 
     # Create a dummy input
     x = torch.ones(2, *signal_shape)  # Batch of 2
@@ -232,7 +232,7 @@ def test_recover_signal(generator):
     n = np.prod(signal_shape)
     m = 8
     indices = torch.arange(0, n, n // m)
-    A = CSMeasurementMatrix(indices, m, signal_shape)
+    A = SubsampledFourierMatrix(indices, m, signal_shape)
 
     # Generate a true signal and measurements
     true_signal = generate_random_signal(generator, latent_dim)
