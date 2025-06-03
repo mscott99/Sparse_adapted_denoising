@@ -1,4 +1,4 @@
-from utils_plot import log_relplot
+from utils.utils_plot import log_relplot
 from seaborn import relplot
 import numpy as np
 import scipy
