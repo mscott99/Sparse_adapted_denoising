@@ -55,7 +55,7 @@ def main():
         transforms.ToTensor(),
     ])
     # train_data = datasets.ImageFolder(data_dir, transform=train_transforms)
-    train_data = CelebA(data_dir, target_type = "identity", split="train", transform = train_transforms, download = True)
+    train_data = CelebA(data_dir, target_type = "identity", split="train", transform = train_transforms, download = False)
     trainloader = torch.utils.data.DataLoader(train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True)
 
     images, labels = next(iter(trainloader))
