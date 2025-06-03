@@ -12,6 +12,7 @@ from typing import Tuple
 import os
 from .train_model import ConvGenerator, Generator, ConvVAE, VAEWrapper
 from . import convvae
+from .optimization import exterior_redo_recover_signal
 
 from sparse_recov.sampling_recov_functions import sample_CS_matrix
 
@@ -49,7 +50,7 @@ def get_fft_loc_coherences(generator: Generator, num_samples: int = 50,
     return loc_co.cpu().numpy()  # Return as numpy array
 
 
-class CSMeasurementMatrix(nn.Module):
+class SubsampledFourierMatrix(nn.Module):
     """
     A PyTorch module for a differentiable compressed sensing measurement matrix.
     Applies a subsampled 2D Fourier transform based on given indices.
@@ -64,7 +65,7 @@ class CSMeasurementMatrix(nn.Module):
     """
 
     def __init__(self, indices, m: int, signal_shape: Tuple, ):
-        super(CSMeasurementMatrix, self).__init__()
+        super(SubsampledFourierMatrix, self).__init__()
         self.m = m  # Desired number of measurements
         self.signal_shape = signal_shape  # Signal dimension
         indices = torch.tensor(indices)
@@ -108,89 +109,14 @@ class CSMeasurementMatrix(nn.Module):
         return measurements
 
 
-class preconditionedCSMeasurementMatrix(nn.Module):
-    def __init__(self, SF: CSMeasurementMatrix, dtld: torch.Tensor):
-        super(preconditionedCSMeasurementMatrix, self).__init__()
+class preconditionedSubsampledFourierMatrix(nn.Module):
+    def __init__(self, SF: SubsampledFourierMatrix, dtld: torch.Tensor):
+        super(preconditionedSubsampledFourierMatrix, self).__init__()
         self.SF = SF
         self.dtld = dtld
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.dtld * self.SF.forward(x)
-
-
-def recover_signal(generator: Generator, A: Callable, b: torch.Tensor,
-                   k: int, lr: float = 0.01, num_iterations: int = 40000, batch_size=5, tol_stop: Optional[float] = 1e-7, beta1=0.9, beta2=0.999, true_signal=None, device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), log_interval = 100) -> Tuple[torch.Tensor, NDArray, Optional[NDArray], float, bool, int]:
-    """
-    Recover the signal by optimizing the latent vector z using the generative prior, the best of batch_size attempts.
-
-    Args:
-        generator: Generator model (non-trainable) producing 2D signals
-        measurements: Observed measurements (tensor, shape (m_tld,) or (1, m_tld))
-        A: CSMeasurementMatrix instance (non-trainable) for differentiable measurements
-        latent_dim: Dimension of the latent space (generator.k)
-        lr: Learning rate for optimization (default 0.01)
-        num_iterations: Number of optimization iterations (default 1000)
-
-    Returns:
-        recovered_signal: Recovered signal as a numpy array (e.g., 28x28)
-        z_opt: Optimized latent vector as a torch tensor
-    """
-    # Move models to device
-    generator.to(device)
-    for param in generator.parameters():
-        param.requires_grad = False
-
-    # Initialize latent vector z from N(0,1) as a trainable parameter
-    z = torch.randn(batch_size, k, requires_grad=True, device=device)
-    b = b.unsqueeze(0)
-    optimizer = optim.Adam([z], lr=lr, betas=(beta1, beta2))
-    losses = []
-    test_losses = []
-    # Optimization loop
-    tol_stopped = False
-    last_iter = 0
-    for i in range(num_iterations):
-        optimizer.zero_grad()
-        x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
-        offset = A(x_tensor) - b
-        if offset.is_complex():
-            loss = torch.sum(offset.real**2 + offset.imag**2,
-                             dim=tuple(range(1, b.ndim)), keepdim=False)
-        else:
-            loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
-        if i % log_interval == 0:
-            losses.append(loss.detach().cpu().numpy())
-            if true_signal != None:
-                test_losses.append(
-                    (torch.norm(torch.mean(x_tensor, dim=0, keepdim=False) - true_signal)/torch.norm(true_signal)).mean().item())
-        if tol_stop != None and loss.min() < tol_stop:
-            tol_stopped = True
-            last_iter = i
-            break
-        # Backpropagate and update z
-        loss.sum().backward()
-        optimizer.step()
-    if last_iter == 0:
-        last_iter = num_iterations
-    # Final signal recovery
-
-    with torch.no_grad():
-        x_tensor = generator(z)  # Shape: (1, height, width), e.g., (1, 28, 28)
-        offset = A(x_tensor) - b
-        if offset.is_complex():
-            loss = torch.sum(offset.real**2 + offset.imag**2,
-                             dim=tuple(range(1, b.ndim)), keepdim=False)
-        else:
-            loss = torch.sum(offset**2, tuple(range(1, b.ndim)), keepdim=False)
-        best = torch.argmin(loss)
-        smallest_loss = torch.min(loss).item()
-        # Get recovered signal and remove channel dimension if present
-        # Shape: (1, 1, height, width)
-        recovered = generator(z[best, :].unsqueeze(0))
-        recovered_signal = recovered.squeeze(0)
-
-    returned_test_losses = None if true_signal == None else np.array(test_losses)
-    return recovered_signal, np.array(losses), returned_test_losses, smallest_loss, tol_stopped, last_iter
 
 
 ExperimentTypes = {
@@ -213,7 +139,8 @@ def make_df():
     # n = 112*128*3  # Fixed image size, matching sparse experiment
     df = allcombinations({
         # Number of measurements
-        'm': 28**2,  # logspace(n/2, n, 3, integer=True),
+        # 'm': 28**2,  # logspace(n/2, n, 3, integer=True),
+        'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
@@ -238,7 +165,7 @@ def make_df():
     })
 
     model_df = pd.DataFrame(
-        {'model_type': ["MNIST_vae_16", "co_heavy_tail"], 'k':[16, 16]})
+        {'model_type': ["vae-32"]})
     df = cross_merge_dfs(df, model_df)
     df = repeat(df, 10)
 
@@ -299,9 +226,9 @@ def experiment(data: dict) -> dict[str, Any]:
         generator = VAEWrapper(convvae.get_model())
         input_shape = generator.output_shape
     else:
-        generator = load_saved_model(
-            k=16, file_name=data['model_type'])
-        raise ValueError("model_type can only be 'random' or 'trained'")
+        full_model = convvae.get_model(data['model_type']).eval()
+        generator = VAEWrapper(full_model).to(device)
+        input_shape = generator.output_shape
     return_dict['k'] = data['k'] = generator.k
     generator.to(device)
     # Override n because the wavelet transform may change it slightly
@@ -335,7 +262,7 @@ def experiment(data: dict) -> dict[str, Any]:
             true_signal, _ = full_data[random_idx]
             true_signal = true_signal.to(device)
             if "project_to_prior" in data and data['project_to_prior']:
-                true_signal, _, _, _, _, _ = recover_signal(generator, torch.nn.Identity(
+                true_signal, _, _, _, _, _ = exterior_redo_recover_signal(generator, torch.nn.Identity(
                 ), true_signal, data['k'], num_iterations=1000, batch_size=1, device=device)
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
@@ -344,7 +271,7 @@ def experiment(data: dict) -> dict[str, Any]:
         raise NotImplementedError()
 
     # Signal acquisition
-    SF = CSMeasurementMatrix(indices, m, input_shape).to(device)
+    SF = SubsampledFourierMatrix(indices, m, input_shape).to(device)
     signal = SF(true_signal.unsqueeze(0)).squeeze(0)
     noise = torch.tensor(
         1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
@@ -357,12 +284,12 @@ def experiment(data: dict) -> dict[str, Any]:
         #     raise NotImplementedError(
         #         "Bernoulli sampling with preconditioned opt not implemented")
         dtld = d[indices]
-        SDF = preconditionedCSMeasurementMatrix(SF, dtld)
+        SDF = preconditionedSubsampledFourierMatrix(SF, dtld)
         btld = dtld*b
     SDF.to(device)
     btld.to(device)
-    x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = recover_signal(
-        generator, SDF, btld, data['k'], data['lr'], data['max_iter'], data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
+    x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = exterior_redo_recover_signal(
+        generator, btld, data['k'], SDF, data['lr'], data['max_iter'], batch_size=data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
 
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
