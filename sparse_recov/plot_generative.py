@@ -7,8 +7,9 @@ from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
 
 
-def plot_co(G:ConvGenerator):
-    heatmap(np.fft.fftshift(get_fft_loc_coherences(G)[0,:,:]), norm=LogNorm())
+def plot_co(G: ConvGenerator):
+    ax = heatmap(np.fft.fftshift(get_fft_loc_coherences(G)[0,:,:]), norm=LogNorm())
+    ax.set_axis_off()
 
 def show_images(G: ConvGenerator, num_images: int = 4, device: str = 'cpu'):
     # Set the generator to evaluation mode
