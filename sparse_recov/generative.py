@@ -259,7 +259,7 @@ def experiment(data: dict) -> dict[str, Any]:
                 ])
                 data_dir = os.getenv("DATA_DIR")
                 assert data_dir is not None
-                train_data = torchvision.datasets.CelebA(data_dir, target_type = "identity", split=data["true_signal_dist"], transform = train_transforms, download = False)
+                train_data = torchvision.datasets.CelebA(data_dir, target_type = "identity", split=data["true_signal_dist"], transform = train_transforms, download = True)
                 random_idx = np.random.randint(0, int(len(train_data)))
                 true_signal, _ = train_data[random_idx]
                 true_signal = true_signal.to(device)
