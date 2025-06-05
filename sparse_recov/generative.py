@@ -167,9 +167,9 @@ def make_df():
         'num_repeats_in_optim': [20],
     })
 
-    model_df = pd.DataFrame({'model_type': ["vae-200", "vae-32"]})
+    model_df = pd.DataFrame({'model_type': ["vae-32"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 20)
+    df = repeat(df, 2)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
