@@ -142,8 +142,8 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
-        # 'm': logspace(int(3), n, 8, integer=True),
-        'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
+        'm': logspace(int(3), n, 8, integer=True),
+        # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
@@ -154,8 +154,8 @@ def make_df():
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'dataset': 'CELEBA',
         'true_signal_dist': 'train',
-        'project_to_prior': False,
-        'sampling_type': ['adjusted_Ber'],
+        'project_to_prior': True,
+        'sampling_type': ['adjusted_Ber', 'wor'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
         'lr': [1.0],  # Learning rate for optimization
@@ -169,7 +169,7 @@ def make_df():
 
     model_df = pd.DataFrame({'model_type': ["vae-32"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 2)
+    df = repeat(df, 40)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
@@ -259,7 +259,7 @@ def experiment(data: dict) -> dict[str, Any]:
                 ])
                 data_dir = os.getenv("DATA_DIR")
                 assert data_dir is not None
-                train_data = torchvision.datasets.CelebA(data_dir, target_type = "identity", split=data["true_signal_dist"], transform = train_transforms, download = True)
+                train_data = torchvision.datasets.CelebA(data_dir, target_type = "identity", split=data["true_signal_dist"], transform = train_transforms, download = False)
                 random_idx = np.random.randint(0, int(len(train_data)))
                 true_signal, _ = train_data[random_idx]
                 true_signal = true_signal.to(device)
