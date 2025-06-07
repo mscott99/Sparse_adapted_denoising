@@ -142,7 +142,8 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
-        'm': logspace(int(3), n, 8, integer=True),
+        'm':n,
+        # 'm': logspace(int(3), n, 8, integer=True),
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
@@ -155,21 +156,21 @@ def make_df():
         'dataset': 'CELEBA',
         'true_signal_dist': 'train',
         'project_to_prior': True,
-        'sampling_type': ['adjusted_Ber', 'wor'],
+        'sampling_type': ['adjusted_Ber'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [5],
-        'opt_tol_stop': [1e-3],
+        'max_iter': [4],
+        'opt_tol_stop': [1e-4],
         # Number of optimization repeats (batch size in recover_signal)
-        'num_repeats_in_optim': [20],
+        'num_repeats_in_optim': [60],
     })
 
     model_df = pd.DataFrame({'model_type': ["vae-32"]})
     df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 40)
+    df = repeat(df, 2)
 
     df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
@@ -181,7 +182,7 @@ def make_df():
         'global_seed': global_seed,
         'save_img': True,
         'save_sampling': False,
-        'save_opt_data': True
+        'save_opt_data': False
     })
     add_standard_attributes(df)
     df = soft_astype_df(df, ExperimentTypes)
@@ -271,7 +272,7 @@ def experiment(data: dict) -> dict[str, Any]:
                 #     random_idx = np.random.randint(
                 #         int(len(full_data)*0.8), len(full_data))
                 if "project_to_prior" in data and data['project_to_prior']:
-                    true_signal, _, _, _, _, _ = exterior_redo_recover_signal(generator, true_signal, data['k'], num_tries=data['num_repeats_in_optim'], max_iter=data['max_iter'], tol_stop=1e-6, device=device)
+                    true_signal, _, _, _, _, _ = exterior_redo_recover_signal(generator, true_signal, data['k'], lr = data['lr'], num_tries=data['num_repeats_in_optim'], max_iter=data['max_iter'], tol_stop=data['opt_tol_stop'], device=device)
                 # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
             else:
                 raise NotImplementedError("Implement dataset: ", data["dataset"])
@@ -297,7 +298,7 @@ def experiment(data: dict) -> dict[str, Any]:
         SDF.to(device)
         btld.to(device)
         x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = exterior_redo_recover_signal(
-            generator, btld, data['k'], SDF, data['lr'], data['max_iter'], num_tries=data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
+            generator, btld, latent_dim = data['k'], A = SDF, max_iter = data['max_iter'], lr = data['lr'], num_tries=data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
 
         #return_dict['reconstructed_img'] = full_model.forward(true_signal.unsqueeze(0))[2].squeeze(0).cpu().numpy()
         true_signal = true_signal.cpu().numpy()

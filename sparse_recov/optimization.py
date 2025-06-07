@@ -6,7 +6,7 @@ import pandas as pd
 from typing import Tuple, Dict, Any, Optional, Callable
 import os
 from time import time
-from utils.utils_data import allcombinations, repeat
+from utils.utils_data import allcombinations, repeat, run_local_df_experiment
 from torchvision import datasets, transforms
 from sparse_recov.train_model import Generator, VAEWrapper
 from sparse_recov import convvae
@@ -16,6 +16,7 @@ def exterior_redo_recover_signal(*args, num_tries=3, tol_stop = 1e-4, batch_size
     for i in range(1,num_tries):
         last_obj = recover_signal(*args, batch_size=batch_size, tol_stop = tol_stop, **kwargs)
         if last_obj[3] < best_obj[3]:
+            print(last_obj[3])
             best_obj = last_obj
             if best_obj[3] < tol_stop:
                 break
@@ -131,11 +132,11 @@ def make_df():
         'beta2': [0.999],  # Adam optimizer parameter
         'max_iter': [3],  # Maximum number of iterations
         'opt_tol_stop': [1e-3],
-        'num_repeats_in_optim': [100],  # Batch size for optimization (number of parallel attempts)
+        'num_repeats_in_optim': [200],  # Batch size for optimization (number of parallel attempts)
         'model_type': ['vae-32'],  # Model type for the generator
         'dataset': ['CELEBA'],  # Dataset used for signal generation
     })
-    df = repeat(df, 6)
+    df = repeat(df, 2)
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
@@ -206,3 +207,7 @@ def experiment(data: Dict[str, Any]) -> Dict[str, Any]:
         return_dict['opt_data'] = opt_data
 
     return return_dict
+
+if __name__ == "__main__":
+    result = run_local_df_experiment(make_df(), experiment)
+    result.to_pickle("./data/last_local.pickle")
