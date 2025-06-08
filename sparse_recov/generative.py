@@ -142,8 +142,8 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
-        'm':n,
-        # 'm': logspace(int(3), n, 8, integer=True),
+        # 'm':n,
+        'm': logspace(int(2), 1000, 8, integer=True),
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
@@ -156,19 +156,19 @@ def make_df():
         'dataset': 'CELEBA',
         'true_signal_dist': 'train',
         'project_to_prior': True,
-        'sampling_type': ['adjusted_Ber'],
+        'sampling_type': ['adjusted_Ber', 'wor', 'Ber', 'wr'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [3],  # Maximum number of iterations
-        'opt_tol_stop': [1e-4],
+        'max_iter': [4],  # Maximum number of iterations
+        'opt_tol_stop': [0.005],
+        'num_repeats_in_optim': [200],  # Batch size for optimization (number of parallel attempts)
         # Number of optimization repeats (batch size in recover_signal)
         'model_type': ['vae-32'],  # Model type for the generator
-        'num_repeats_in_optim': [60],
     })
-    df = repeat(df, 6)
+    df = repeat(df, 20)
 
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234

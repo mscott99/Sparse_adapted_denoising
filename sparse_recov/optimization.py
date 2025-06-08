@@ -14,12 +14,15 @@ from sparse_recov import convvae
 def exterior_redo_recover_signal(*args, num_tries=3, tol_stop = 1e-4, batch_size=1, **kwargs):
     best_obj = recover_signal(*args, **kwargs)
     for i in range(1,num_tries):
+        if best_obj[3] < tol_stop:
+            # print(best_obj[3])
+            return best_obj
+            
         last_obj = recover_signal(*args, batch_size=batch_size, tol_stop = tol_stop, **kwargs)
         if last_obj[3] < best_obj[3]:
             print(last_obj[3])
             best_obj = last_obj
-            if best_obj[3] < tol_stop:
-                break
+    # print("Accuracy ", tol_stop, " not achieved, only managed ", best_obj[3])
     return best_obj
 
 def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Callable = torch.nn.Identity(),
@@ -55,13 +58,10 @@ def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Ca
 
     b = b.to(device).unsqueeze(0)
     b.requires_grad=False
-    measurement_size = torch.norm(b).item()
+    measurement_size = torch.sqrt(torch.sum(torch.abs(b)**2)).item()
 
     if starting_code != None:
         z = starting_code
-    elif encoder != None:
-        z = encoder(b)
-        z.requires_grad = True
     else:
         z = torch.randn(batch_size, latent_dim, requires_grad=True, device=device)
 
@@ -71,12 +71,12 @@ def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Ca
     optimizer = optim.LBFGS([z], lr=lr)
     def closure():
             optimizer.zero_grad()
-            offset = A(generator(z)) - b
+            offset = generator(z) - b
             if offset.is_complex():
                 loss = torch.sum(offset.real**2 + offset.imag**2)
             else:
                 loss = torch.sum(offset**2)
-            loss.backward() # Sum if it's a batch
+            loss.backward()
             return loss # LBFGS needs a scalar loss 
 
     losses = []
@@ -112,7 +112,7 @@ def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Ca
         last_iter = max_iter
 
     with torch.no_grad():
-        loss_array = torch.sum(torch.abs(A(generator(z)) - b) ** 2, dim=tuple(range(1, b.ndim)), keepdim=False)
+        loss_array = torch.sum(torch.abs(generator(z) - b) ** 2, dim=tuple(range(1, b.ndim)), keepdim=False)
         best = torch.argmin(loss_array)
         smallest_loss =  torch.sqrt(loss_array.min()).item()/measurement_size
         recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(0)
@@ -128,13 +128,13 @@ def make_df():
     """
     n = 112*128*3  # Fixed image size, matching sparse experiment
     df = allcombinations({
-        'lr': [1.0],  # Learning rate for optimization
+        'lr': [0.8],  # Learning rate for optimization
         'm':n,
         'sigma': [0.0],  # Noise levels
         'beta1': [0.9],  # Adam optimizer parameter
         'beta2': [0.999],  # Adam optimizer parameter
         'max_iter': [4],  # Maximum number of iterations
-        'opt_tol_stop': [1e-3],
+        'opt_tol_stop': [0.04],
         'num_repeats_in_optim': [200],  # Batch size for optimization (number of parallel attempts)
         'model_type': ['vae-32'],  # Model type for the generator
         'dataset': ['CELEBA'],  # Dataset used for signal generation
@@ -168,11 +168,13 @@ def experiment(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # Load the CelebA generative model
     full_model = convvae.get_model(data['model_type']).eval()
+    full_model.eval()
     generator = VAEWrapper(full_model).to(device)
+    generator.eval()
 
-    def encoder(x):
-        mu_p, log_var_p = full_model.forward_encoder(x)
-        return full_model.sampling(mu_p, 2*log_var_p)
+    # def encoder(x):
+    #     mu_p, log_var_p = full_model.forward_encoder(x)
+    #     return full_model.sampling(mu_p, 2*log_var_p)
 
     # Generate a random target signal
     with torch.no_grad():
@@ -186,7 +188,6 @@ def experiment(data: Dict[str, Any]) -> Dict[str, Any]:
         num_tries = data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], 
         beta1=data['beta1'], beta2=data['beta2'], device=device
     )
-
     target_signal_np = target_signal.cpu().numpy()
     recovered_signal_np = recovered_signal.cpu().numpy()
 
