@@ -162,17 +162,15 @@ def make_df():
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [4],
+        'max_iter': [3],  # Maximum number of iterations
         'opt_tol_stop': [1e-4],
         # Number of optimization repeats (batch size in recover_signal)
+        'model_type': ['vae-32'],  # Model type for the generator
         'num_repeats_in_optim': [60],
     })
+    df = repeat(df, 6)
 
-    model_df = pd.DataFrame({'model_type': ["vae-32"]})
-    df = cross_merge_dfs(df, model_df)
-    df = repeat(df, 2)
-
-    df['sampling_type'] = df['sampling_type'].astype('category')
+    # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]

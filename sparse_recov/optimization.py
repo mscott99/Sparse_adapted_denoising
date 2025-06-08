@@ -22,11 +22,11 @@ def exterior_redo_recover_signal(*args, num_tries=3, tol_stop = 1e-4, batch_size
                 break
     return best_obj
 
-def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Callable = lambda x: x,
+def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Callable = torch.nn.Identity(),
                    lr: float = 0.01, max_iter: int = 1000, batch_size: int = 1, 
                    tol_stop: Optional[float] = 1e-7, true_signal=None, beta1: float = 0.9, beta2: float = 0.999,
                    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"), encoder=None, 
-                   log_interval: int = 3, starting_code:Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, np.ndarray, np.ndarray, float, bool, int]:
+                   log_interval: int = 1, starting_code:Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, np.ndarray, np.ndarray, float, bool, int]:
     """
     Recover the latent vector that generates a signal close to the target signal using gradient descent.
     
@@ -126,17 +126,20 @@ def make_df():
     Returns:
         pd.DataFrame: DataFrame containing experiment parameters.
     """
+    n = 112*128*3  # Fixed image size, matching sparse experiment
     df = allcombinations({
         'lr': [1.0],  # Learning rate for optimization
+        'm':n,
+        'sigma': [0.0],  # Noise levels
         'beta1': [0.9],  # Adam optimizer parameter
         'beta2': [0.999],  # Adam optimizer parameter
-        'max_iter': [3],  # Maximum number of iterations
+        'max_iter': [4],  # Maximum number of iterations
         'opt_tol_stop': [1e-3],
         'num_repeats_in_optim': [200],  # Batch size for optimization (number of parallel attempts)
         'model_type': ['vae-32'],  # Model type for the generator
         'dataset': ['CELEBA'],  # Dataset used for signal generation
     })
-    df = repeat(df, 2)
+    df = repeat(df, 6)
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
@@ -144,7 +147,7 @@ def make_df():
         'label': 'optimization_inversion',
         'global_seed': global_seed,
         'save_img': True,
-        'save_opt_data': True
+        'save_opt_data': False
     })
     return df
 
