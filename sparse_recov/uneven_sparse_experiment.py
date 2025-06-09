@@ -27,18 +27,21 @@ def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
     return points
 
 
-def Haar_local_coherence(sqt_n: int, level: int):
+def Haar_local_coherence(signal_shape, level: int):
+    assert signal_shape[1] == signal_shape[2]
+    sqt_n = signal_shape[1]
     img_to_reconstruct, slices = coeffs_to_array(
-        wavedec2(np.zeros((sqt_n, sqt_n)), "haar", level=level))
-    max_co = np.zeros((sqt_n, sqt_n))
+        wavedec2(np.zeros(signal_shape), "haar", level=level))
+    max_co = np.zeros(signal_shape)
     for i, j in get_representative_points(sqt_n, level):
-        img_to_reconstruct.fill(0)
-        img_to_reconstruct[i, j] = 1
-        this_vec = waverec2(array_to_coeffs(
-            img_to_reconstruct, slices, output_format="wavedec2"), "haar")
-        normalized_vec = this_vec/np.sqrt(np.sum(this_vec**2))
-        new_co = np.abs(fft2(normalized_vec, norm="ortho"))
-        max_co = np.maximum(new_co, max_co)
+        for k in range(signal_shape[0]):
+            img_to_reconstruct.fill(0)
+            img_to_reconstruct[k, i, j] = 1
+            this_vec = waverec2(array_to_coeffs(
+                img_to_reconstruct, slices, output_format="wavedec2"), "haar")
+            normalized_vec = this_vec/np.sqrt(np.sum(this_vec**2))
+            new_co = np.abs(fft2(normalized_vec, norm="ortho"))
+            max_co = np.maximum(new_co, max_co)
     return max_co
 
 
@@ -77,26 +80,27 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256 
-    df = allcombinations({#'m' : 256**2,
-                          'm': logspace(100, 256**2*3, 7, integer=True),
+    channels = 3
+    df = allcombinations({'m' : 256**2,
+                          #'m': logspace(100, 256**2*3, 7, integer=True),
                           'k': [200],
                           'sigma': [0.0],
                           'img': ["celeba"],
-                          "sampling_type": ["adjusted_Ber", "wor"],
+                          "sampling_type": ["wor"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
                           "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 20)
+    df = repeat(df, 1)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
+        {'sqt_n': sqt_n, 'channels':3, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
@@ -116,7 +120,7 @@ def wavelet_functions(signal_shape, level):
     return (wavelet_transform, inverse_wavelet, np.prod(theshape))
 
 
-def get_sparse_signal( sqt_n, img_name):
+def get_sparse_signal(sqt_n, img_name):
     # Generate the true signal
     if img_name == "phantom":
         true_signal = transform.resize(
@@ -143,7 +147,6 @@ def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
     sqt_n = int(data['sqt_n'])
-    n = sqt_n**2
     true_signal = get_sparse_signal(sqt_n, data['img'])
     assert len(true_signal.shape) == 2 or true_signal.shape[0] == 3 # expected format 
     wavelet_transform, inverse_wavelet, wav_len = wavelet_functions(
