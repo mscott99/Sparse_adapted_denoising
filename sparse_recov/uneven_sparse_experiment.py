@@ -100,13 +100,14 @@ def make_df():
     return df
 
 
-def wavelet_functions(sqt_n, level):
+def wavelet_functions(signal_shape, level):
+    axes = (len(signal_shape)-2, len(signal_shape)-1)
     sample_wavelet, slices = coeffs_to_array(
-        wavedec2(np.zeros((sqt_n, sqt_n)), "haar", level=level))
+        wavedec2(np.zeros(signal_shape), "haar", level=level), axes = axes)
     theshape = sample_wavelet.shape
 
     def wavelet_transform(y) -> np.ndarray:  # 2d to
-        return coeffs_to_array(wavedec2(y, "haar", level=level, axes=(-2, -1)))[0].ravel()
+        return coeffs_to_array(wavedec2(y, "haar", level=level, axes=axes), axes = axes)[0].ravel()
 
     def inverse_wavelet(w: np.ndarray) -> np.ndarray:  # 1d to 2d
         return waverec2(array_to_coeffs(
@@ -114,7 +115,7 @@ def wavelet_functions(sqt_n, level):
     return (wavelet_transform, inverse_wavelet, np.prod(theshape))
 
 
-def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
+def get_sparse_signal( sqt_n, img_name):
     # Generate the true signal
     if img_name == "phantom":
         true_signal = transform.resize(
@@ -131,12 +132,9 @@ def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
                 ])
         dataset = torchvision.datasets.CelebA(data_dir, target_type = "identity", split="all", transform = train_transforms, download = False)
         true_signal, _ = dataset[np.random.randint(len(dataset))]
+        true_signal = true_signal.numpy()
     else:
         raise NotImplementedError()
-
-    true_signal = truncate_to_sparsity(
-        true_signal, k, wavelet_transform, inverse_wavelet)
-    true_signal = true_signal/np.linalg.norm(true_signal)
     return true_signal
 
 
@@ -145,11 +143,13 @@ def experiment(data: dict) -> dict[str, Any]:
     start_time = time()
     sqt_n = int(data['sqt_n'])
     n = sqt_n**2
-
+    true_signal = get_sparse_signal(sqt_n, data['img'])
+    assert len(true_signal.shape) == 2 or true_signal.shape[0] == 3 # expected format 
     wavelet_transform, inverse_wavelet, wav_len = wavelet_functions(
-        sqt_n, data['level'])
-    true_signal = get_sparse_signal(
-        data['k'], sqt_n, data['img'], wavelet_transform, inverse_wavelet)
+        true_signal.shape, data['level'])
+    true_signal = truncate_to_sparsity(
+        true_signal, data['k'], wavelet_transform, inverse_wavelet)
+    true_signal = true_signal/np.linalg.norm(true_signal)
 
     # Override n because the wavelet transform may change it slightly.
     m = data['m']
