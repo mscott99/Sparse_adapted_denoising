@@ -29,12 +29,13 @@ def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
 
 def Haar_local_coherence(signal_shape, level: int):
     assert signal_shape[1] == signal_shape[2]
+    axes = (len(signal_shape)-2, len(signal_shape)-1)
     sqt_n = signal_shape[1]
     img_to_reconstruct, slices = coeffs_to_array(
-        wavedec2(np.zeros(signal_shape), "haar", level=level))
+        wavedec2(np.zeros(signal_shape), "haar", level=level), axes = axes)
     max_co = np.zeros(signal_shape)
     for i, j in get_representative_points(sqt_n, level):
-        for k in range(signal_shape[0]):
+        for k in range(img_to_reconstruct.shape[0]):
             img_to_reconstruct.fill(0)
             img_to_reconstruct[k, i, j] = 1
             this_vec = waverec2(array_to_coeffs(
@@ -81,12 +82,12 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256 
     channels = 3
-    df = allcombinations({'m' : 256**2,
+    df = allcombinations({'m' : 100,
                           #'m': logspace(100, 256**2*3, 7, integer=True),
                           'k': [200],
                           'sigma': [0.0],
                           'img': ["celeba"],
-                          "sampling_type": ["wor"],
+                          "sampling_type": ["adjusted_Ber"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
                           "alg": "bpdn_projected"})
@@ -158,7 +159,7 @@ def experiment(data: dict) -> dict[str, Any]:
     # Override n because the wavelet transform may change it slightly.
     m = data['m']
     n = true_signal.size
-    loc_co = Haar_local_coherence(sqt_n, data['level'])
+    loc_co = Haar_local_coherence(true_signal.shape, data['level'])
 
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
@@ -229,4 +230,5 @@ def experiment(data: dict) -> dict[str, Any]:
     return return_dict
 if __name__ == "__main__":
     result = run_local_df_experiment(make_df(), experiment)
+    print(result.loc[0]['re'])
     result.to_pickle("./data/last_local.pickle")
