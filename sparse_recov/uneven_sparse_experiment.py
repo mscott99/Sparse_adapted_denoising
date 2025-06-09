@@ -1,4 +1,8 @@
 # This file is for uneven signal recovery.
+from utils.utils_data import allcombinations, repeat, run_local_df_experiment
+import os
+import torchvision
+from torchvision import datasets, transforms, utils
 import pandas as pd
 from time import time
 import numpy as np
@@ -39,7 +43,7 @@ def Haar_local_coherence(sqt_n: int, level: int):
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
+    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -72,11 +76,11 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 
 def make_df():
-    sqt_n = 256
-    df = allcombinations({'m': logspace(60, 200, 5, integer=True),
-                          # 'm': 1,
-                          'k': [60], 'sigma': [0.0],
-                          'img': ["camera", "phantom"],
+    sqt_n = 256 #'m': logspace(60, 2000, 7, integer=True),
+    df = allcombinations({'m' : 256**2,
+                          'k': [200],
+                          'sigma': [0.0],
+                          'img': ["celeba"],
                           "sampling_type": ["adjusted_Ber"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
@@ -84,7 +88,7 @@ def make_df():
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 3)
+    df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -102,7 +106,7 @@ def wavelet_functions(sqt_n, level):
     theshape = sample_wavelet.shape
 
     def wavelet_transform(y) -> np.ndarray:  # 2d to
-        return coeffs_to_array(wavedec2(y, "haar", level=level))[0].ravel()
+        return coeffs_to_array(wavedec2(y, "haar", level=level, axes=(-2, -1)))[0].ravel()
 
     def inverse_wavelet(w: np.ndarray) -> np.ndarray:  # 1d to 2d
         return waverec2(array_to_coeffs(
@@ -118,6 +122,15 @@ def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
     elif img_name == "camera":
         true_signal = transform.resize(
             camera().astype(np.float32), (sqt_n, sqt_n))
+    elif img_name == "celeba":
+        data_dir = os.getenv("DATA_DIR")
+        assert data_dir is not None
+        train_transforms = transforms.Compose([
+                    transforms.Resize((sqt_n, sqt_n)),
+                    transforms.ToTensor(),
+                ])
+        dataset = torchvision.datasets.CelebA(data_dir, target_type = "identity", split="all", transform = train_transforms, download = False)
+        true_signal, _ = dataset[np.random.randint(len(dataset))]
     else:
         raise NotImplementedError()
 
@@ -213,4 +226,4 @@ def experiment(data: dict) -> dict[str, Any]:
 
 if __name__ == "__main__":
     result = run_local_df_experiment(make_df(), experiment)
-
+    #result.to_pickle("./data/last_local.pickle")
