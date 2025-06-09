@@ -156,7 +156,7 @@ def make_df():
         'dataset': 'CELEBA',
         'true_signal_dist': 'train',
         'project_to_prior': True,
-        'sampling_type': ['adjusted_Ber', 'wor', 'Ber', 'wr'],
+        'sampling_type': ['deterministic'],
         'sampling_dist_type': 'optimized',
         'preconditioned_optimization': [True],
         'lr': [1.0],  # Learning rate for optimization
