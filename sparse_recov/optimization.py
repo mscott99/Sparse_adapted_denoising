@@ -71,7 +71,7 @@ def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Ca
     optimizer = optim.LBFGS([z], lr=lr)
     def closure():
             optimizer.zero_grad()
-            offset = generator(z) - b
+            offset = A(generator(z)) - b
             if offset.is_complex():
                 loss = torch.sum(offset.real**2 + offset.imag**2)
             else:
@@ -112,7 +112,7 @@ def recover_signal(generator: Generator,  b: torch.Tensor, latent_dim: int, A:Ca
         last_iter = max_iter
 
     with torch.no_grad():
-        loss_array = torch.sum(torch.abs(generator(z) - b) ** 2, dim=tuple(range(1, b.ndim)), keepdim=False)
+        loss_array = torch.sum(torch.abs(A(generator(z)) - b) ** 2, dim=tuple(range(1, b.ndim)), keepdim=False)
         best = torch.argmin(loss_array)
         smallest_loss =  torch.sqrt(loss_array.min()).item()/measurement_size
         recovered_signal = generator(z[best, :].unsqueeze(0)).squeeze(0)
