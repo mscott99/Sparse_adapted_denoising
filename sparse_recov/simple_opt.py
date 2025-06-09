@@ -1,22 +1,24 @@
-from . import convvae
+from sparse_recov import convvae
 import numpy as np
 import torchvision
 import os
 from torchvision import transforms
-from .train_model import VAEWrapper
+from sparse_recov.train_model import VAEWrapper
 import torch
 
 
-def exterior_redo_recover_signal(b, num_tries=3, tol_stop=1e-4, max_iter=4):
+def exterior_redo_recover_signal(b, num_tries=3, tol_stop=1e-4, max_iter=4, printstuff=False):
     best_obj, best_img = recover_signal(b, max_iter)
     for _ in range(1, num_tries):
         if best_obj < tol_stop:
-            print(best_obj)
+            if printstuff:
+                print(best_obj)
             return best_obj, best_img
 
         last_obj, last_img = recover_signal(b, max_iter)
         if last_obj < best_obj:
-            print(last_obj)
+            if printstuff:
+                print(last_obj)
             best_obj = last_obj
             best_img = last_img
     # print("Accuracy ", tol_stop, " not achieved, only managed ", best_obj[3])
@@ -25,10 +27,10 @@ def exterior_redo_recover_signal(b, num_tries=3, tol_stop=1e-4, max_iter=4):
 
 def recover_signal(b, max_iter):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    z = torch.randn(1, 32, requires_grad=True)
+    z = torch.randn(1, 32, requires_grad=True, device = device)
     full_model = convvae.get_model("vae-32").eval()
     generator = VAEWrapper(full_model).to(device)
-
+    generator.requires_grad_(False)
     optimizer = torch.optim.LBFGS([z])
 
     def closure():
@@ -37,10 +39,10 @@ def recover_signal(b, max_iter):
         loss.backward()
         return loss
 
-    for _ in max_iter:
+    for _ in range(max_iter):
         optimizer.step(closure)
 
-    return (torch.norm(generator(z) - b)/torch.norm(b)).item(), generator(z)
+    return (torch.norm(generator(z) - b)/torch.norm(b)).item(), generator(z).detach()
 
 if __name__ == "__main__":
     n = 128*112*3
@@ -55,4 +57,5 @@ if __name__ == "__main__":
     true_signal, _ = train_data[random_idx]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     true_signal = true_signal.to(device)
-    result = exterior_redo_recover_signal(true_signal, 60, 1e-3, 4)    
+    best, true_signal = exterior_redo_recover_signal(true_signal, 4, 1e-3, 20, False)    
+    best, true_signal = exterior_redo_recover_signal(true_signal, 300, 1e-3, 4, True)    
