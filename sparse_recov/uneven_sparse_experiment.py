@@ -81,9 +81,8 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256 
-    channels = 3
-    df = allcombinations({'m' : 100,
-                          #'m': logspace(100, 256**2*3, 7, integer=True),
+    df = allcombinations({#'m' : 100,
+                          'm': logspace(100, 3000, 7, integer=True),
                           'k': [200],
                           'sigma': [0.0],
                           'img': ["celeba"],
@@ -101,7 +100,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, 'channels':3, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
+        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
