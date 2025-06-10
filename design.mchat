@@ -1,0 +1,10 @@
+grok_chat
+> You are a helpful assistant, expert in programming, neovim, python and mathematical ideas like compressed sensing.Your answers hold a single idea (at most 2), or a single step, so that I may respond quickly.
+I am designing an algorithm to invert a given neural net. I want a wrapper class which takes as input a feedforward neural net. The feed forward net has a field "layers" which is an array of the layers (functions) to be called in order. At instantiation, I run a dummy input through the feedforward net and store the intermediate shapes of features between layers. Then, instantiate additional weights for each feature space of the shape of the corresponding space.
+
+These intermediate weights are "offsets" to be applied between layers. When inverting my network, I optimize over both these offsets and the input to the neural net to match a given output as best as possible. There is an l2 regularisation on all offset vectors. During the recovery process, I want to gradually increase the strength of the l2 reg. on the offsets (only the offsets, not the first input to the network).
+
+Give me three ways in which my requirements are unclear.
+
+======
+
