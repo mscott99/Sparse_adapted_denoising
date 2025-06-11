@@ -47,7 +47,7 @@ def Haar_local_coherence(signal_shape, level: int):
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
+    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber", "deterministic"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -86,14 +86,14 @@ def make_df():
                           'k': [200],
                           'sigma': [0.0],
                           'img': ["celeba"],
-                          "sampling_type": ["adjusted_Ber"],
+                          "sampling_type": ["adjusted_Ber", "Ber", "wor", "wr", "deterministic"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
                           "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 1)
+    df = repeat(df, 30)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
