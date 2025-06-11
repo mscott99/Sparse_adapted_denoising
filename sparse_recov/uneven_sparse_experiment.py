@@ -6,11 +6,11 @@ from typing import Any, Tuple, List
 from skimage.data import shepp_logan_phantom, camera
 from skimage import transform
 from pywt import wavedec2, waverec2, coeffs_to_array, array_to_coeffs
-from utils.utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df
+from utils.utils_data import logspace, allcombinations, add_standard_attributes, repeat, run_local_df_experiment, soft_astype_df
 from scipy.fft import fft2
 import spgl1
 
-from .sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier, sample_CS_matrix
+from sparse_recov.sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier, sample_CS_matrix
 
 
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
@@ -73,17 +73,18 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 
 def make_df():
     sqt_n = 256
-    df = allcombinations({'m': logspace(60, 2000, 7, integer=True),
+    df = allcombinations({'m': logspace(60, 200, 5, integer=True),
+                          # 'm': 1,
                           'k': [60], 'sigma': [0.0],
                           'img': ["camera", "phantom"],
-                          "sampling_type": ["adjusted_Ber", "wor", "Ber", "wr"],
+                          "sampling_type": ["adjusted_Ber"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
                           "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 10)
+    df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -174,10 +175,12 @@ def experiment(data: dict) -> dict[str, Any]:
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
         x_hat = inverse_wavelet(np.real(x_haar))
     elif data['alg'] == 'bpdn_projected':
-        assert m >= k
+        # assert m >= k
         # First run BPDN to get initial solution
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
+        # if opt_info['rnorm'] > 1.0:
+        #     x_haar = np.zeros_like(x_haar)
         support = np.argsort(np.abs(x_haar))[-k:]
         A_support = np.zeros((m_tld, k), dtype=np.complex64)
         for i, idx in enumerate(support):
@@ -200,10 +203,14 @@ def experiment(data: dict) -> dict[str, Any]:
     # optim_info = {'resid': resid, 'grad': grad, 'info': info}
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
-    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "sparse_uneven",
+    return_dict = {'re': re, 'rnorm': opt_info['rnorm'], 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "sparse_uneven",
                    "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal)}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
         return_dict['indices'] = indices
     return return_dict
+
+if __name__ == "__main__":
+    result = run_local_df_experiment(make_df(), experiment)
+
