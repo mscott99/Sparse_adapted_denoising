@@ -82,18 +82,18 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256 
     df = allcombinations({#'m' : 100,
-                          'm': logspace(100, 3000, 7, integer=True),
+                          'm': logspace(100, 300, 5, integer=True),
                           'k': [200],
                           'sigma': [0.0],
                           'img': ["celeba"],
-                          "sampling_type": ["adjusted_Ber", "Ber", "wor", "wr", "deterministic"],
+                          "sampling_type": ["adjusted_Ber"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
                           "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 30)
+    df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -207,10 +207,12 @@ def experiment(data: dict) -> dict[str, Any]:
         x_ls, _, _, _ = np.linalg.lstsq(A_support, b, rcond=None)
         x_haar = np.zeros_like(x_haar)
         x_haar[support] = x_ls
+        x_hat = inverse_wavelet(np.real(x_haar))
+        if np.linalg.norm(x_hat) > 2: #limit magnitude of catastrophic error.
+            x_hat = np.zeros_like(x_hat)
     else:
         raise ValueError("invalid alg argument")
 
-    x_hat = inverse_wavelet(np.real(x_haar))
 
     # Return relevant data.
     if data['sigma'] == 0:
@@ -220,7 +222,7 @@ def experiment(data: dict) -> dict[str, Any]:
     # optim_info = {'resid': resid, 'grad': grad, 'info': info}
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
-    return_dict = {'re': re, 'rnorm': opt_info['rnorm'], 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "sparse_uneven",
+    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "sparse_uneven",
                    "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal)}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
