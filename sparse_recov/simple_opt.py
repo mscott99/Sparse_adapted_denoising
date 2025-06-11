@@ -6,6 +6,12 @@ from torchvision import transforms
 from sparse_recov.train_model import VAEWrapper
 import torch
 
+def random_signal():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    full_model = convvae.get_model("vae-32").eval().to(device)
+    generator = VAEWrapper(full_model)
+    generator.requires_grad_(False)
+    return generator(torch.randn(1,32, device = device, requires_grad=False))
 
 def exterior_redo_recover_signal(b, num_tries=3, tol_stop=1e-4, max_iter=4, printstuff=False):
     best_obj, best_img = recover_signal(b, max_iter)
@@ -27,10 +33,15 @@ def exterior_redo_recover_signal(b, num_tries=3, tol_stop=1e-4, max_iter=4, prin
 
 def recover_signal(b, max_iter):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    z = torch.randn(1, 32, requires_grad=True, device = device)
-    full_model = convvae.get_model("vae-32").eval()
-    generator = VAEWrapper(full_model).to(device)
+    full_model = convvae.get_model("vae-32").eval().to(device)
+    b.to(device)
+    generator = VAEWrapper(full_model)
     generator.requires_grad_(False)
+    # mu_p, log_var_p = full_model.forward_encoder(b)
+    # z = full_model.sampling(mu_p, log_var_p)
+    # z.requires_grad = True
+    z = 0.3 * torch.randn(1, 32, requires_grad=False, device = device)
+    z.requires_grad = True
     optimizer = torch.optim.LBFGS([z])
 
     def closure():
@@ -56,6 +67,11 @@ if __name__ == "__main__":
     random_idx = np.random.randint(0, int(len(train_data)))
     true_signal, _ = train_data[random_idx]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    true_signal = true_signal.to(device)
-    best, true_signal = exterior_redo_recover_signal(true_signal, 4, 1e-3, 20, False)    
-    best, true_signal = exterior_redo_recover_signal(true_signal, 300, 1e-3, 4, True)    
+    true_signal = true_signal.to(device).unsqueeze(0)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # full_model = convvae.get_model("vae-32").eval().to(device)
+    # true_signal = full_model.forward(true_signal)[2]
+    # true_signal.requires_grad=False
+    # best, true_signal = exterior_redo_recover_signal(true_signal, 2, 1e-3, 20, False)    
+    true_signal = random_signal()
+    best, true_signal = exterior_redo_recover_signal(true_signal, 100, 1e-3, 5, True)    
