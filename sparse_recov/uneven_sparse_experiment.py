@@ -2,7 +2,7 @@
 from utils.utils_data import allcombinations, repeat, run_local_df_experiment
 import os
 import torchvision
-from torchvision import datasets, transforms, utils
+from torchvision import datasets, 
 import pandas as pd
 from time import time
 import numpy as np
@@ -82,18 +82,18 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
 def make_df():
     sqt_n = 256 
     df = allcombinations({#'m' : 100,
-                          'm': logspace(100, 300, 5, integer=True),
+                          'm': logspace(100, 10000, 8, integer=True),
                           'k': [200],
                           'sigma': [0.0],
                           'img': ["celeba"],
-                          "sampling_type": ["adjusted_Ber"],
+                          "sampling_type": ["adjusted_Ber", "Ber", "wor", "wr", "deterministic"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
                           "alg": "bpdn_projected"})
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 2)
+    df = repeat(df, 20)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -192,12 +192,9 @@ def experiment(data: dict) -> dict[str, Any]:
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
         x_hat = inverse_wavelet(np.real(x_haar))
     elif data['alg'] == 'bpdn_projected':
-        # assert m >= k
         # First run BPDN to get initial solution
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
-        # if opt_info['rnorm'] > 1.0:
-        #     x_haar = np.zeros_like(x_haar)
         support = np.argsort(np.abs(x_haar))[-k:]
         A_support = np.zeros((m_tld, k), dtype=np.complex64)
         for i, idx in enumerate(support):
@@ -212,7 +209,6 @@ def experiment(data: dict) -> dict[str, Any]:
             x_hat = np.zeros_like(x_hat)
     else:
         raise ValueError("invalid alg argument")
-
 
     # Return relevant data.
     if data['sigma'] == 0:
