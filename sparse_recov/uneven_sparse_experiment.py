@@ -2,7 +2,7 @@
 from utils.utils_data import allcombinations, repeat, run_local_df_experiment
 import os
 import torchvision
-from torchvision import datasets, 
+from torchvision import transforms
 import pandas as pd
 from time import time
 import numpy as np
