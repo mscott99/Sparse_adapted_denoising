@@ -188,12 +188,13 @@ def make_df():
 
 
 def load_saved_model(k: int, file_name: str):
-    proj_path = os.getenv("PROJECT")
-    if proj_path == None:
-        raise Exception("PROJECT env var was not set.")
+    # proj_path = os.getenv("PROJECT")
+    model_dir = os.getenv("MODEL_DIR")
+    if model_dir == None:
+        raise Exception("MODEL_DIR env var was not set.")
     model = ConvVAE(k=k)
     model.load_state_dict(torch.load(os.path.join(
-        proj_path, "models", file_name), map_location=torch.device('cpu')))
+        model_dir, file_name), map_location=torch.device('cpu')))
     return model.decoder
 
 
