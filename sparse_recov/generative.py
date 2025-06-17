@@ -142,11 +142,16 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
+<<<<<<< HEAD
         'm':n,
         # 'm': logspace(int(2), 1000, 2, integer=True),
+=======
+        # 'm':n,
+        'm': logspace(int(2), 4000, 7, integer=True),
+>>>>>>> 1c30da4 (Run robust test)
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
-        'sigma': [0.0],  # Noise levels
+        'sigma': [0.0, 0.1, 0.5, 1.0],  # Noise levels
         # Weighted random sampling (fixed as in generative.py)
         # robust sampling schemes
         # 'sampling_type': ['wr'],
@@ -156,19 +161,27 @@ def make_df():
         'dataset': 'CELEBA',
         'true_signal_dist': 'train',
         'project_to_prior': True,
-        'sampling_type': ['deterministic'],
-        'sampling_dist_type': 'optimized',
+        'sampling_type': ['wr'],
+        'sampling_dist_type': ['optimized','robust', 'half_robust'],
         'preconditioned_optimization': [True],
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
         'max_iter': [4],  # Maximum number of iterations
         'opt_tol_stop': [0.005],
+<<<<<<< HEAD
         'num_repeats_in_optim': [40],  # Batch size for optimization (number of parallel attempts)
         # Number of optimization repeats (batch size in recover_signal)
         'model_type': ['vae-32'],  # Model type for the generator
     })
     df = repeat(df, 2)
+=======
+        'num_repeats_in_optim': [30],  # Batch size for optimization (number of parallel attempts)
+        # Number of optimization repeats (batch size in recover_signal)
+        'model_type': ['vae-32'],  # Model type for the generator
+    })
+    df = repeat(df, 5)
+>>>>>>> 1c30da4 (Run robust test)
 
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
