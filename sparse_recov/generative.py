@@ -143,7 +143,7 @@ def make_df():
         # Number of measurements
         # 'm': 28**2,  
         # 'm':n,
-        'm': logspace(int(2), 1000, 8, integer=True),
+        'm': logspace(int(2), 1000, 2, integer=True),
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
