@@ -142,8 +142,8 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
-        # 'm':n,
-        'm': logspace(int(2), 1000, 2, integer=True),
+        'm':n,
+        # 'm': logspace(int(2), 1000, 2, integer=True),
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         'sigma': [0.0],  # Noise levels
@@ -164,11 +164,11 @@ def make_df():
         'beta2': [0.999],
         'max_iter': [4],  # Maximum number of iterations
         'opt_tol_stop': [0.005],
-        'num_repeats_in_optim': [200],  # Batch size for optimization (number of parallel attempts)
+        'num_repeats_in_optim': [40],  # Batch size for optimization (number of parallel attempts)
         # Number of optimization repeats (batch size in recover_signal)
         'model_type': ['vae-32'],  # Model type for the generator
     })
-    df = repeat(df, 20)
+    df = repeat(df, 2)
 
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
