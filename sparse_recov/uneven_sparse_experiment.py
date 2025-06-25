@@ -83,7 +83,7 @@ def make_df():
     sqt_n = 256 
     df = allcombinations({#'m' : 100,
                           'm': logspace(100, 10000, 8, integer=True),
-                          'k': [200],
+                          'k': [int(256**2/4)],
                           'sigma': [0.0],
                           'img': ["celeba"],
                           "sampling_type": ["adjusted_Ber", "deterministic"],
@@ -100,7 +100,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 1, "save_sampling": False})
+        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
