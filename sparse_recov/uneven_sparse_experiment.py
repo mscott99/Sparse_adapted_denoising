@@ -47,11 +47,10 @@ def Haar_local_coherence(signal_shape, level: int):
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber", "deterministic"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
+    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber", "deterministic"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str, "sparsity": pd.CategoricalDtype(["prop_random", "optimized", "top"])}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
-
 
 def threshold_vec(v, k):
     sorted_idx = np.argsort(np.abs(v.ravel()))
@@ -60,8 +59,29 @@ def threshold_vec(v, k):
     sparse_coeffs.ravel()[threshold_idx] = v.flatten()[threshold_idx]
     return sparse_coeffs
 
+def rand_threshold_vec(v,k,p=None):
+    """
+    Sparsify a vector by randomly selecting k indices to keep, with optional weights.
+    
+    Args:
+        v: Input vector (numpy array)
+        k: Number of non-zero elements to keep
+        p: Probability weights for sampling (optional, if None uniform weights are used)
+    
+    Returns:
+        Sparsified vector with k non-zero elements
+    """
+    n = v.size
+    if p is None:
+        p = np.ones(n) / n
+    assert k <= n
+    selected_idx = np.random.choice(n, size=k, replace=False, p=p/np.sum(p))
+    sparse_coeffs = np.zeros_like(v)
+    sparse_coeffs.ravel()[selected_idx] = v.flatten()[selected_idx]
+    return sparse_coeffs
 
-def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) -> np.ndarray:
+
+def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, truncation_type:str = "top") -> np.ndarray:
     """
     Truncate an image to a specified sparsity level in the Haar wavelet basis.
 
@@ -76,8 +96,16 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
     """
 
     # Transform to wavelet domain
-    return from_wavelet(threshold_vec(to_wavelet(image), k))
-
+    if truncation_type == "top":
+        return from_wavelet(threshold_vec(to_wavelet(image), k))
+    elif truncation_type == "prop_random":
+        coeffs = to_wavelet(image)
+        return from_wavelet(rand_threshold_vec(coeffs, k, np.abs(coeffs)))
+    elif truncation_type == "optimized":
+        coeffs = to_wavelet(image)
+        return from_wavelet(rand_threshold_vec(coeffs, k, coeffs**2))
+    else:
+        raise ValueError("Invalid type of truncation.")
 
 def make_df():
     sqt_n = 256 
@@ -90,7 +118,9 @@ def make_df():
                           "sampling_type": ["adjusted_Ber", "deterministic"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
-                          "alg": "bpdn_projected"})
+                          "alg": "bpdn_projected",
+                          "sparsity": "optimized",
+                          })
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
@@ -153,7 +183,7 @@ def experiment(data: dict) -> dict[str, Any]:
     wavelet_transform, inverse_wavelet, wav_len = wavelet_functions(
         true_signal.shape, data['level'])
     true_signal = truncate_to_sparsity(
-        true_signal, data['k'], wavelet_transform, inverse_wavelet)
+        true_signal, data['k'], wavelet_transform, inverse_wavelet, data['sparsity'])
     true_signal = true_signal/np.linalg.norm(true_signal)
 
     # Override n because the wavelet transform may change it slightly.
