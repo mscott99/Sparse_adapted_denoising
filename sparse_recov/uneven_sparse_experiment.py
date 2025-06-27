@@ -111,8 +111,8 @@ def make_df():
     sqt_n = 256 
     n=sqt_n**2*3
     df = allcombinations({#'m' : 100,
-                          'm': logspace(500, 5*10**4, 2, integer=True),
-                          'k': [200],
+                          'm': logspace(500, 5*10**4, 8, integer=True),
+                          'k': [500],
                           'sigma': [0.0],
                           'img': ["celeba"],
                           "sampling_type": ["adjusted_Ber", "deterministic"],
@@ -124,14 +124,14 @@ def make_df():
     # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
     #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 2)
+    df = repeat(df, 5)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 1, "save_sampling": False})
+        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
