@@ -112,19 +112,17 @@ def make_df():
     n=sqt_n**2*3
     df = allcombinations({#'m' : 100,
                           'm': logspace(500, n, 8, integer=True),
-                          'k': [500],
+                          'k': [5000],
                           'sigma': [0.0],
                           'img': ["celeba"],
                           "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
                           "alg": "bpdn_projected",
-                          "sparsity": "prop_random",
+                          "sparsity": "top",
                           })
-    # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
-    #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
 
-    df = repeat(df, 20)
+    df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
