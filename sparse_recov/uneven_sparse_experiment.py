@@ -122,7 +122,7 @@ def make_df():
                           "sparsity": "top",
                           })
 
-    df = repeat(df, 3)
+    df = repeat(df, 5)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
