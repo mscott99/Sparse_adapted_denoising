@@ -137,7 +137,7 @@ ExperimentTypes = {
 
 
 def make_df():
-    n = 28**2 # 112*128*3  # Fixed image size, matching sparse experiment
+    n=256**2*3
     # n = 28**2  
     df = allcombinations({
         # Number of measurements
@@ -173,6 +173,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     df.attrs.update({
         'sqt_n': 28,
+        'n': 256**2*3,
         'label': 'generative_vanilla',
         'global_seed': global_seed,
         'save_img': True,
@@ -227,7 +228,7 @@ def experiment(data: dict) -> dict[str, Any]:
     elif data['model_type'] == "conv_celeba":
         generator = VAEWrapper(convvae.get_model())
         input_shape = generator.output_shape
-    else:
+    else: # Here model_type is basename of file pth.
         full_model = convvae.get_model(data['model_type']).eval()
         generator = VAEWrapper(full_model).to(device)
         input_shape = generator.output_shape

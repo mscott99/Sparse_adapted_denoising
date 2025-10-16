@@ -27,18 +27,22 @@ def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
     return points
 
 
-def Haar_local_coherence(sqt_n: int, level: int):
+def Haar_local_coherence(signal_shape, level: int):
+    assert signal_shape[1] == signal_shape[2]
+    axes = (len(signal_shape)-2, len(signal_shape)-1)
+    sqt_n = signal_shape[1]
     img_to_reconstruct, slices = coeffs_to_array(
-        wavedec2(np.zeros((sqt_n, sqt_n)), "haar", level=level))
-    max_co = np.zeros((sqt_n, sqt_n))
+        wavedec2(np.zeros(signal_shape), "haar", level=level), axes = axes)
+    max_co = np.zeros(signal_shape)
     for i, j in get_representative_points(sqt_n, level):
-        img_to_reconstruct.fill(0)
-        img_to_reconstruct[i, j] = 1
-        this_vec = waverec2(array_to_coeffs(
-            img_to_reconstruct, slices, output_format="wavedec2"), "haar")
-        normalized_vec = this_vec/np.sqrt(np.sum(this_vec**2))
-        new_co = np.abs(fft2(normalized_vec, norm="ortho"))
-        max_co = np.maximum(new_co, max_co)
+        for k in range(img_to_reconstruct.shape[0]):
+            img_to_reconstruct.fill(0)
+            img_to_reconstruct[k, i, j] = 1
+            this_vec = waverec2(array_to_coeffs(
+                img_to_reconstruct, slices, output_format="wavedec2"), "haar")
+            normalized_vec = this_vec/np.sqrt(np.sum(this_vec**2))
+            new_co = np.abs(fft2(normalized_vec, norm="ortho"))
+            max_co = np.maximum(new_co, max_co)
     return max_co
 
 
@@ -48,7 +52,6 @@ ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": floa
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
 
-
 def threshold_vec(v, k):
     sorted_idx = np.argsort(np.abs(v.ravel()))
     threshold_idx = sorted_idx[-k:]
@@ -56,8 +59,29 @@ def threshold_vec(v, k):
     sparse_coeffs.ravel()[threshold_idx] = v.flatten()[threshold_idx]
     return sparse_coeffs
 
+def rand_threshold_vec(v,k,p=None):
+    """
+    Sparsify a vector by randomly selecting k indices to keep, with optional weights.
+    
+    Args:
+        v: Input vector (numpy array)
+        k: Number of non-zero elements to keep
+        p: Probability weights for sampling (optional, if None uniform weights are used)
+    
+    Returns:
+        Sparsified vector with k non-zero elements
+    """
+    n = v.size
+    if p is None:
+        p = np.ones(n) / n
+    assert k <= n
+    selected_idx = np.random.choice(n, size=k, replace=False, p=p/np.sum(p))
+    sparse_coeffs = np.zeros_like(v)
+    sparse_coeffs.ravel()[selected_idx] = v.flatten()[selected_idx]
+    return sparse_coeffs
 
-def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) -> np.ndarray:
+
+def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, truncation_type:str = "top") -> np.ndarray:
     """
     Truncate an image to a specified sparsity level in the Haar wavelet basis.
 
@@ -72,41 +96,52 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet) ->
     """
 
     # Transform to wavelet domain
-    return from_wavelet(threshold_vec(to_wavelet(image), k))
-
+    if truncation_type == "top":
+        return from_wavelet(threshold_vec(to_wavelet(image), k))
+    elif truncation_type == "prop_random":
+        coeffs = to_wavelet(image)
+        return from_wavelet(rand_threshold_vec(coeffs, k, np.abs(coeffs)))
+    elif truncation_type == "optimized":
+        coeffs = to_wavelet(image)
+        return from_wavelet(rand_threshold_vec(coeffs, k, coeffs**2))
+    else:
+        raise ValueError("Invalid type of truncation.")
 
 def make_df():
-    sqt_n = 256 #'m': logspace(60, 2000, 7, integer=True),
-    df = allcombinations({'m' : 256**2,
-                          'k': [200],
+    sqt_n = 256 
+    n=sqt_n**2*3
+    df = allcombinations({#'m' : 100,
+                          'm': logspace(500, n, 8, integer=True),
+                          'k': [5000],
                           'sigma': [0.0],
                           'img': ["celeba"],
-                          "sampling_type": ["adjusted_Ber"],
+                          "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
                           "sampling_dist_type": ["optimized"],
                           "preconditioned_optimization": True,
-                          "alg": "bpdn_projected"})
-    # df = allcombinations({'m': logspace(1e2, sqt_n**2*4, 10, integer=True), 'k': [5, 30, 100], 'sigma': [
-    #     0.0, 1e-3, 1e-2, 1e-1, 3e-1, 1e0], 'img': "camera", "sampling_type": "wr", "sampling_dist_type": [True, False], "preconditioned_optimization": False, "alg": ["bpdn", "bpdn_projected"]})
+                          "alg": "bpdn_projected",
+                          "sparsity": "top",
+                          })
 
-    df = repeat(df, 2)
+    df = repeat(df, 5)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 5, "save_sampling": False})
+        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
 
-def wavelet_functions(sqt_n, level):
+def wavelet_functions(signal_shape, level):
+    axes = (len(signal_shape)-2, len(signal_shape)-1)
     sample_wavelet, slices = coeffs_to_array(
-        wavedec2(np.zeros((sqt_n, sqt_n)), "haar", level=level))
+        wavedec2(np.zeros(signal_shape), "haar", level=level), axes = axes)
     theshape = sample_wavelet.shape
 
     def wavelet_transform(y) -> np.ndarray:  # 2d to
-        return coeffs_to_array(wavedec2(y, "haar", level=level, axes=(-2, -1)))[0].ravel()
+        return coeffs_to_array(wavedec2(y, "haar", level=level, axes=axes), axes = axes)[0].ravel()
 
     def inverse_wavelet(w: np.ndarray) -> np.ndarray:  # 1d to 2d
         return waverec2(array_to_coeffs(
@@ -114,7 +149,7 @@ def wavelet_functions(sqt_n, level):
     return (wavelet_transform, inverse_wavelet, np.prod(theshape))
 
 
-def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
+def get_sparse_signal(sqt_n, img_name):
     # Generate the true signal
     if img_name == "phantom":
         true_signal = transform.resize(
@@ -131,12 +166,9 @@ def get_sparse_signal(k, sqt_n, img_name, wavelet_transform, inverse_wavelet):
                 ])
         dataset = torchvision.datasets.CelebA(data_dir, target_type = "identity", split="all", transform = train_transforms, download = False)
         true_signal, _ = dataset[np.random.randint(len(dataset))]
+        true_signal = true_signal.numpy()
     else:
         raise NotImplementedError()
-
-    true_signal = truncate_to_sparsity(
-        true_signal, k, wavelet_transform, inverse_wavelet)
-    true_signal = true_signal/np.linalg.norm(true_signal)
     return true_signal
 
 
@@ -144,17 +176,18 @@ def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
     sqt_n = int(data['sqt_n'])
-    n = sqt_n**2
-
+    true_signal = get_sparse_signal(sqt_n, data['img'])
+    assert len(true_signal.shape) == 2 or true_signal.shape[0] == 3 # expected format 
     wavelet_transform, inverse_wavelet, wav_len = wavelet_functions(
-        sqt_n, data['level'])
-    true_signal = get_sparse_signal(
-        data['k'], sqt_n, data['img'], wavelet_transform, inverse_wavelet)
+        true_signal.shape, data['level'])
+    true_signal = truncate_to_sparsity(
+        true_signal, data['k'], wavelet_transform, inverse_wavelet, data['sparsity'])
+    true_signal = true_signal/np.linalg.norm(true_signal)
 
     # Override n because the wavelet transform may change it slightly.
     m = data['m']
     n = true_signal.size
-    loc_co = Haar_local_coherence(sqt_n, data['level'])
+    loc_co = Haar_local_coherence(true_signal.shape, data['level'])
 
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
@@ -188,12 +221,9 @@ def experiment(data: dict) -> dict[str, Any]:
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
         x_hat = inverse_wavelet(np.real(x_haar))
     elif data['alg'] == 'bpdn_projected':
-        # assert m >= k
         # First run BPDN to get initial solution
         x_haar, resid, grad, opt_info = spgl1.spg_bpdn(
             A, b, sigma_opt, iter_lim=data['max_iter'], verbosity=0)
-        # if opt_info['rnorm'] > 1.0:
-        #     x_haar = np.zeros_like(x_haar)
         support = np.argsort(np.abs(x_haar))[-k:]
         A_support = np.zeros((m_tld, k), dtype=np.complex64)
         for i, idx in enumerate(support):
@@ -203,10 +233,11 @@ def experiment(data: dict) -> dict[str, Any]:
         x_ls, _, _, _ = np.linalg.lstsq(A_support, b, rcond=None)
         x_haar = np.zeros_like(x_haar)
         x_haar[support] = x_ls
+        x_hat = inverse_wavelet(np.real(x_haar))
+        if np.linalg.norm(x_hat) > 2: #limit magnitude of catastrophic error.
+            x_hat = np.zeros_like(x_hat)
     else:
         raise ValueError("invalid alg argument")
-
-    x_hat = inverse_wavelet(np.real(x_haar))
 
     # Return relevant data.
     if data['sigma'] == 0:
@@ -216,14 +247,14 @@ def experiment(data: dict) -> dict[str, Any]:
     # optim_info = {'resid': resid, 'grad': grad, 'info': info}
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
-    return_dict = {'re': re, 'rnorm': opt_info['rnorm'], 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "sparse_uneven",
+    return_dict = {'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "sparse_uneven",
                    "m_tld": m_tld, 'emp_snr': emp_snr, 'noise_mag': np.linalg.norm(noise), 'signal_mag': np.linalg.norm(signal)}
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
     if 'save_sampling' in data and data['save_sampling']:
         return_dict['indices'] = indices
     return return_dict
-
 if __name__ == "__main__":
     result = run_local_df_experiment(make_df(), experiment)
-    #result.to_pickle("./data/last_local.pickle")
+    print(result.loc[0]['re'])
+    result.to_pickle("./data/last_local.pickle")
