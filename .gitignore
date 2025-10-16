@@ -14,3 +14,4 @@ models
 *.pkl
 __pycache__
 results
+models/
