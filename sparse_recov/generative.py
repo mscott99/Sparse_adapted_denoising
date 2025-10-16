@@ -142,31 +142,32 @@ def make_df():
     df = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
-        'm': logspace(int(2), 28**2, 7, integer=True),
+        'm': [2,8,64],
+        # 'm': logspace(int(2), 28**2, 7, integer=True),
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
-        'sigma': [0.0, 0.1, 0.5, 1.0],  # Noise levels
+        # 'sigma': [0.0, 0.1, 0.5, 1.0],  # Noise levels
+        'sigma': 0.0,
         # Weighted random sampling (fixed as in generative.py)
         # robust sampling schemes
         # 'sampling_type': ['wr'],
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
-        'dataset': 'MNIST',
         'true_signal_dist': 'random',
         'project_to_prior': False,
-        'sampling_type': ['wr'],
-        'sampling_dist_type': ['optimized','robust', 'half_robust'],
+        'sampling_type': ['adjusted_Ber'],
+        'sampling_dist_type': ['optimized', 'uniform'],
         'preconditioned_optimization': [True],
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
         'max_iter': [3],  # Maximum number of iterations
         'opt_tol_stop': [0.0001],
-        'num_repeats_in_optim': [10],  # Batch size for optimization (number of parallel attempts)
+        'num_repeats_in_optim': [5],  # Batch size for optimization (number of parallel attempts)
         # Number of optimization repeats (batch size in recover_signal)
-        'model_type': ['MNIST_vae_16'],  # Model type for the generator
+        'model_type': ['vae-200'],  # Model type for the generator
     })
-    df = repeat(df, 40)
+    df = repeat(df, 2)
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -177,8 +178,10 @@ def make_df():
         'label': 'generative_vanilla',
         'global_seed': global_seed,
         'save_img': True,
+        'optimizer': 'LBFGS',
         'save_sampling': False,
-        'save_opt_data': False
+        'save_opt_data': False,
+        'dataset': 'CELEBA',
     })
     add_standard_attributes(df)
     df = soft_astype_df(df, ExperimentTypes)
