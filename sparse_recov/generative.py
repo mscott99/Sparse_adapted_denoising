@@ -165,17 +165,17 @@ def make_df():
         # Number of optimization repeats (batch size in recover_signal)
         'model_type': ['vae-200'],  # Model type for the generator
     })
-    # first_bers = allcombinations({
-    #     # Number of measurements
-    #     'sampling_type': ['adjusted_Ber'],
-    #     'sampling_dist_type': ['uniform'],
-    # })
+    first_bers = allcombinations({
+        # Number of measurements
+        'sampling_type': ['adjusted_Ber'],
+        'sampling_dist_type': ['uniform', 'optimized'],
+    })
     other_bers = allcombinations({
         'sampling_type': ['deterministic'],
         'sampling_dist_type': ['robust'],
     })
-    # all_bers = pd.concat([first_bers, other_bers])
-    mdf = pd.merge(details, other_bers, how='cross')
+    all_bers = pd.concat([first_bers, other_bers])
+    mdf = pd.merge(details, all_bers, how='cross')
     df = repeat(mdf, 200)
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
