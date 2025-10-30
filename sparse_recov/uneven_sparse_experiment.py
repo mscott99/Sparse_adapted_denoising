@@ -110,9 +110,10 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, tr
 def make_df():
     sqt_n = 256 
     n=sqt_n**2*3
+    # 128*112*3
     df = allcombinations({#'m' : 100,
-                          'm': logspace(200, 20000, 5, integer=True),
-                          'k': [200],
+                          'm': logspace(2000, 128*112*3, 5, integer=True),
+                          'k': [5000],
                           'sigma': [0.0],
                           'img': ["celeba"],
                           "sampling_type": ["adjusted_Ber", "deterministic"],
@@ -122,7 +123,7 @@ def make_df():
                           "sparsity": "top",
                           })
 
-    df = repeat(df, 40)
+    df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
