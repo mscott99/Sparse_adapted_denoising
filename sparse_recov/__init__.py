@@ -1,4 +1,4 @@
-from .uneven_sparse_experiment import make_df, experiment
+from .uneven_sparse_experiment import make_df, experiment, ExperimentTypes
 from .convvae import get_model
 # from .optimization import make_df, experiment
 from .train_model import ConvVAE
