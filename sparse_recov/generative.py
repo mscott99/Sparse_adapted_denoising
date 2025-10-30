@@ -137,13 +137,11 @@ ExperimentTypes = {
 
 
 def make_df():
-    n=256**2*3
-    # n = 28**2  
     details = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
         # 'm': [2,8,64],
-        'm': logspace(int(2), 256**2, 3, integer=True),
+        'm': logspace(int(2), 128*112*3, 7, integer=True),
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         # 'sigma': [0.0, 0.1, 0.5, 1.0],  # Noise levels
@@ -168,12 +166,12 @@ def make_df():
     first_bers = allcombinations({
         # Number of measurements
         'sampling_type': ['adjusted_Ber'],
-        'sampling_dist_type': ['uniform'],
+        'sampling_dist_type': ['optimized'],
     })
-    # other_bers = allcombinations({
-    #     'sampling_type': ['deterministic'],
-    #     'sampling_dist_type': ['robust'],
-    # })
+    other_bers = allcombinations({
+        'sampling_type': ['deterministic'],
+        'sampling_dist_type': ['robust'],
+    })
     # all_bers = pd.concat([first_bers, other_bers])
     mdf = pd.merge(details, first_bers, how='cross')
     df = repeat(mdf, 200)
@@ -248,6 +246,7 @@ def experiment(data: dict) -> dict[str, Any]:
     generator.to(device)
     # Override n because the wavelet transform may change it slightly
     loc_co = get_fft_loc_coherences(generator, device=device)
+    n=loc_co.size
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
     if "prec_exponent" in data:
