@@ -7,6 +7,7 @@ from sparse_recov.toy_Fourier import high_coherence_MNIST
 from sparse_recov.sampling_recov_functions import half_robust
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
+from utils.utils_data import run_local_df_experiment
 # Fixture for a simple generator
 
 
