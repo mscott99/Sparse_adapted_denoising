@@ -166,14 +166,14 @@ def make_df():
     first_bers = allcombinations({
         # Number of measurements
         'sampling_type': ['adjusted_Ber'],
-        'sampling_dist_type': ['optimized'],
+        'sampling_dist_type': ['optimized', 'uniform'],
     })
     other_bers = allcombinations({
         'sampling_type': ['deterministic'],
         'sampling_dist_type': ['robust'],
     })
-    # all_bers = pd.concat([first_bers, other_bers])
-    mdf = pd.merge(details, first_bers, how='cross')
+    all_bers = pd.concat([first_bers, other_bers])
+    mdf = pd.merge(details, all_bers, how='cross')
     df = repeat(mdf, 200)
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
