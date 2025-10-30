@@ -111,8 +111,8 @@ def make_df():
     sqt_n = 256 
     n=sqt_n**2*3
     df = allcombinations({#'m' : 100,
-                          'm': logspace(2, 128*112*3, 4, integer=True),
-                          'k': [500],
+                          'm': logspace(100, 128*112*3, 5, integer=True),
+                          'k': [200],
                           'sigma': [0.0],
                           'img': ["celeba"],
                           "sampling_type": ["adjusted_Ber", "deterministic"],
@@ -122,7 +122,7 @@ def make_df():
                           "sparsity": "top",
                           })
 
-    df = repeat(df, 1)
+    df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
