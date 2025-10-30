@@ -137,7 +137,7 @@ ExperimentTypes = {
 
 
 def make_df():
-    details = allcombinations({
+    df = allcombinations({
         # Number of measurements
         # 'm': 28**2,  
         # 'm': [2,8,64],
@@ -162,19 +162,10 @@ def make_df():
         'num_repeats_in_optim': [5],  # Batch size for optimization (number of parallel attempts)
         # Number of optimization repeats (batch size in recover_signal)
         'model_type': ['vae-200'],  # Model type for the generator
+        'sampling_type': ['adjusted_Ber', 'wr', 'wor'],
+        'sampling_dist_type': 'optimized',
     })
-    first_bers = allcombinations({
-        # Number of measurements
-        'sampling_type': ['adjusted_Ber'],
-        'sampling_dist_type': ['optimized', 'uniform'],
-    })
-    other_bers = allcombinations({
-        'sampling_type': ['deterministic'],
-        'sampling_dist_type': ['robust'],
-    })
-    all_bers = pd.concat([first_bers, other_bers])
-    mdf = pd.merge(details, all_bers, how='cross')
-    df = repeat(mdf, 200)
+    df = repeat(df, 200)
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
