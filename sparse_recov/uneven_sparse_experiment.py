@@ -112,7 +112,7 @@ def make_df():
     n=sqt_n**2*3
     df = allcombinations({#'m' : 100,
                           'm': logspace(2, 128*112*3, 4, integer=True),
-                          'k': [5000],
+                          'k': [500],
                           'sigma': [0.0],
                           'img': ["celeba"],
                           "sampling_type": ["adjusted_Ber", "deterministic"],
