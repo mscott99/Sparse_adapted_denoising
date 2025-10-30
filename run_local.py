@@ -4,4 +4,4 @@ from datetime import date
 
 df = run_local_parallel_experiment(make_df(), experiment)
 
-df.to_pickle('./data/last_parallel.pickle')
+df.to_pickle('./data/last_sparse.pickle')

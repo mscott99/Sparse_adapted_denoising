@@ -20,7 +20,6 @@ def exterior_redo_recover_signal(*args, num_tries=3, tol_stop = 1e-4, batch_size
             
         last_obj = recover_signal(*args, batch_size=batch_size, tol_stop = tol_stop, **kwargs)
         if last_obj[3] < best_obj[3]:
-            print(last_obj[3])
             best_obj = last_obj
     # print("Accuracy ", tol_stop, " not achieved, only managed ", best_obj[3])
     return best_obj
