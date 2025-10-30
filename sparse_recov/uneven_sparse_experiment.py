@@ -111,7 +111,7 @@ def make_df():
     sqt_n = 256 
     n=sqt_n**2*3
     df = allcombinations({#'m' : 100,
-                          'm': logspace(500, n, 8, integer=True),
+                          'm': logspace(int(2), 1000, 2, integer=True),
                           'k': [5000],
                           'sigma': [0.0],
                           'img': ["celeba"],
@@ -122,7 +122,7 @@ def make_df():
                           "sparsity": "top",
                           })
 
-    df = repeat(df, 5)
+    df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -256,5 +256,4 @@ def experiment(data: dict) -> dict[str, Any]:
     return return_dict
 if __name__ == "__main__":
     result = run_local_df_experiment(make_df(), experiment)
-    print(result.loc[0]['re'])
     result.to_pickle("./data/last_local.pickle")
