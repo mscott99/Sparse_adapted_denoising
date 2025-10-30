@@ -111,7 +111,7 @@ def make_df():
     sqt_n = 256 
     n=sqt_n**2*3
     df = allcombinations({#'m' : 100,
-                          'm': logspace(int(2), 1000, 2, integer=True),
+                          'm': logspace(2, 128*112*3, 7, integer=True),
                           'k': [5000],
                           'sigma': [0.0],
                           'img': ["celeba"],
