@@ -32,7 +32,7 @@ def Haar_local_coherence(signal_shape, level: int):
     axes = (len(signal_shape)-2, len(signal_shape)-1)
     sqt_n = signal_shape[1]
     img_to_reconstruct, slices = coeffs_to_array(
-        wavedec2(np.zeros(signal_shape), "haar", level=level), axes = axes)
+        wavedec2(np.zeros(signal_shape), "haar", level=level), axes=axes)
     max_co = np.zeros(signal_shape)
     for i, j in get_representative_points(sqt_n, level):
         for k in range(img_to_reconstruct.shape[0]):
@@ -52,6 +52,7 @@ ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": floa
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
 
+
 def threshold_vec(v, k):
     sorted_idx = np.argsort(np.abs(v.ravel()))
     threshold_idx = sorted_idx[-k:]
@@ -59,15 +60,16 @@ def threshold_vec(v, k):
     sparse_coeffs.ravel()[threshold_idx] = v.flatten()[threshold_idx]
     return sparse_coeffs
 
-def rand_threshold_vec(v,k,p=None):
+
+def rand_threshold_vec(v, k, p=None):
     """
     Sparsify a vector by randomly selecting k indices to keep, with optional weights.
-    
+
     Args:
         v: Input vector (numpy array)
         k: Number of non-zero elements to keep
         p: Probability weights for sampling (optional, if None uniform weights are used)
-    
+
     Returns:
         Sparsified vector with k non-zero elements
     """
@@ -81,7 +83,7 @@ def rand_threshold_vec(v,k,p=None):
     return sparse_coeffs
 
 
-def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, truncation_type:str = "top") -> np.ndarray:
+def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, truncation_type: str = "top") -> np.ndarray:
     """
     Truncate an image to a specified sparsity level in the Haar wavelet basis.
 
@@ -107,21 +109,16 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, tr
     else:
         raise ValueError("Invalid type of truncation.")
 
+
 def make_df():
-    sqt_n = 256 
-    n=sqt_n**2*3
-    # 128*112*3
-    df = allcombinations({#'m' : 100,
-                          'm': logspace(2000, 128*112*3, 5, integer=True),
-                          'k': [5000],
-                          'sigma': [0.0],
-                          'img': ["celeba"],
-                          "sampling_type": ["adjusted_Ber", "deterministic"],
-                          "sampling_dist_type": ["optimized"],
-                          "preconditioned_optimization": True,
-                          "alg": "bpdn_projected",
-                          "sparsity": "top",
-                          })
+    sqt_n = 128
+    n = sqt_n**2*3
+    df = allcombinations({  # 'm' : 100,
+        'm': logspace(2, n, 7, integer=True),
+        "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
+        "sampling_dist_type": ["optimized"],
+        "sparsity": "top",
+    })
 
     df = repeat(df, 3)
     df['img'] = df['img'].astype('category')
@@ -130,7 +127,12 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False})
+        {'sqt_n': sqt_n, 'k': 5000, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
+         'sigma': 0.0,
+         'img': "celeba",
+         "preconditioned_optimization": True,
+         "alg": "bpdn_projected",
+         })
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
@@ -138,11 +140,11 @@ def make_df():
 def wavelet_functions(signal_shape, level):
     axes = (len(signal_shape)-2, len(signal_shape)-1)
     sample_wavelet, slices = coeffs_to_array(
-        wavedec2(np.zeros(signal_shape), "haar", level=level), axes = axes)
+        wavedec2(np.zeros(signal_shape), "haar", level=level), axes=axes)
     theshape = sample_wavelet.shape
 
     def wavelet_transform(y) -> np.ndarray:  # 2d to
-        return coeffs_to_array(wavedec2(y, "haar", level=level, axes=axes), axes = axes)[0].ravel()
+        return coeffs_to_array(wavedec2(y, "haar", level=level, axes=axes), axes=axes)[0].ravel()
 
     def inverse_wavelet(w: np.ndarray) -> np.ndarray:  # 1d to 2d
         return waverec2(array_to_coeffs(
@@ -162,10 +164,11 @@ def get_sparse_signal(sqt_n, img_name):
         data_dir = os.getenv("DATA_DIR")
         assert data_dir is not None
         train_transforms = transforms.Compose([
-                    transforms.Resize((sqt_n, sqt_n)),
-                    transforms.ToTensor(),
-                ])
-        dataset = torchvision.datasets.CelebA(data_dir, target_type = "identity", split="all", transform = train_transforms, download = False)
+            transforms.Resize((sqt_n, sqt_n)),
+            transforms.ToTensor(),
+        ])
+        dataset = torchvision.datasets.CelebA(
+            data_dir, target_type="identity", split="all", transform=train_transforms, download=False)
         true_signal, _ = dataset[np.random.randint(len(dataset))]
         true_signal = true_signal.numpy()
     else:
@@ -178,7 +181,8 @@ def experiment(data: dict) -> dict[str, Any]:
     start_time = time()
     sqt_n = int(data['sqt_n'])
     true_signal = get_sparse_signal(sqt_n, data['img'])
-    assert len(true_signal.shape) == 2 or true_signal.shape[0] == 3 # expected format 
+    # expected format
+    assert len(true_signal.shape) == 2 or true_signal.shape[0] == 3
     wavelet_transform, inverse_wavelet, wav_len = wavelet_functions(
         true_signal.shape, data['level'])
     true_signal = truncate_to_sparsity(
@@ -235,7 +239,7 @@ def experiment(data: dict) -> dict[str, Any]:
         x_haar = np.zeros_like(x_haar)
         x_haar[support] = x_ls
         x_hat = inverse_wavelet(np.real(x_haar))
-        if np.linalg.norm(x_hat) > 2: #limit magnitude of catastrophic error.
+        if np.linalg.norm(x_hat) > 2:  # limit magnitude of catastrophic error.
             x_hat = np.zeros_like(x_hat)
     else:
         raise ValueError("invalid alg argument")
@@ -255,6 +259,8 @@ def experiment(data: dict) -> dict[str, Any]:
     if 'save_sampling' in data and data['save_sampling']:
         return_dict['indices'] = indices
     return return_dict
+
+
 if __name__ == "__main__":
     result = run_local_df_experiment(make_df(), experiment)
     result.to_pickle("./data/last_local.pickle")
