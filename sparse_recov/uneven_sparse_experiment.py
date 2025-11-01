@@ -1,5 +1,5 @@
 # This file is for uneven signal recovery.
-from utils.utils_data import allcombinations, repeat, run_local_df_experiment
+from utils.utils_data import allcombinations, cross_merge_dfs, repeat, run_local_df_experiment
 import os
 import torchvision
 from torchvision import transforms
@@ -113,21 +113,27 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, tr
 def make_df():
     sqt_n = 128
     n = sqt_n**2*3
-    df = allcombinations({  # 'm' : 100,
+    details = allcombinations({  # 'm' : 100,
         'm': logspace(2, n, 7, integer=True),
-        # "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
-        "sampling_type": "adjusted_Ber",
-        "sampling_dist_type": ["deterministic", "optimized", "uniform"],
         "sparsity": "top",
     })
-
+    first = pd.Dataframe({
+        "sampling_type": "deterministic",
+        "sampling_dist_type": "robust"
+    })
+    second = allcombinations({
+        "sampling_type": "adjusted_Ber",
+        "sampling_dist_type": ["optimized", "uniform"]
+    }) 
+    prelim = cross_merge_dfs(first, second)
+    df = cross_merge_dfs(details, prelim)
     df = repeat(df, 4)
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, 'k': 5000, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
+        {'sqt_n': sqt_n, 'k': 1000, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
          'sigma': 0.0,
          'img': "celeba",
          "preconditioned_optimization": True,
