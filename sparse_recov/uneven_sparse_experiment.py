@@ -115,12 +115,13 @@ def make_df():
     n = sqt_n**2*3
     df = allcombinations({  # 'm' : 100,
         'm': logspace(2, n, 7, integer=True),
-        "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
+        # "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
+        "sampling_type": "adjusted_Ber",
         "sampling_dist_type": ["optimized"],
         "sparsity": "top",
     })
 
-    df = repeat(df, 3)
+    df = repeat(df, 2)
     df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -132,7 +133,11 @@ def make_df():
          'img': "celeba",
          "preconditioned_optimization": True,
          "alg": "bpdn_projected",
-         })
+         "memory": "3G",
+         "num_cpus": "1",
+         "num_gpus": "0",
+         "time": "01:00:00",
+         "rows_per_worker": 2})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
