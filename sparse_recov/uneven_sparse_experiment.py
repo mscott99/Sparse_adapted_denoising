@@ -133,7 +133,7 @@ def make_df():
          "preconditioned_optimization": True,
          "alg": "bpdn_projected",
          "memory": "3G",
-         "num_cpus": "1",
+         "num_cpus": "2",
          "num_gpus": "0",
          "time": "01:00:00",
          "rows_per_worker": 2})
