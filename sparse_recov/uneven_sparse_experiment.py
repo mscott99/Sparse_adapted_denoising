@@ -122,7 +122,6 @@ def make_df():
     })
 
     df = repeat(df, 2)
-    df['img'] = df['img'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
