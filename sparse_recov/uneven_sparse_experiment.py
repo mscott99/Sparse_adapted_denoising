@@ -116,8 +116,8 @@ def make_df():
     df = allcombinations({  # 'm' : 100,
         'm': logspace(2, n, 7, integer=True),
         # "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
-        "sampling_type": "adjusted_Ber",
-        "sampling_dist_type": ["deterministic", "optimized", "uniform"],
+        "sampling_type": ["wr", "wor", "adjusted_Ber"],
+        "sampling_dist_type": "optimized",
         "sparsity": "top",
     })
 
