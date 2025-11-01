@@ -117,11 +117,11 @@ def make_df():
         'm': logspace(2, n, 7, integer=True),
         # "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
         "sampling_type": "adjusted_Ber",
-        "sampling_dist_type": ["optimized"],
+        "sampling_dist_type": ["deterministic", "optimized", "uniform"],
         "sparsity": "top",
     })
 
-    df = repeat(df, 2)
+    df = repeat(df, 4)
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
@@ -136,7 +136,7 @@ def make_df():
          "num_cpus": "1",
          "num_gpus": "0",
          "time": "01:00:00",
-         "rows_per_worker": 40})
+         "rows_per_worker": 10})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
