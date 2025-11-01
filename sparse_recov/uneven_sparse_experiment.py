@@ -117,7 +117,7 @@ def make_df():
         'm': logspace(2, n, 7, integer=True),
         "sparsity": "top",
     })
-    first = pd.Dataframe({
+    first = allcombinations({
         "sampling_type": "deterministic",
         "sampling_dist_type": "robust"
     })
@@ -125,7 +125,7 @@ def make_df():
         "sampling_type": "adjusted_Ber",
         "sampling_dist_type": ["optimized", "uniform"]
     }) 
-    prelim = cross_merge_dfs(first, second)
+    prelim = pd.concat([first, second])
     df = cross_merge_dfs(details, prelim)
     df = repeat(df, 4)
     global_seed = 1234
