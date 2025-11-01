@@ -114,20 +114,20 @@ def make_df():
     sqt_n = 128
     n = sqt_n**2*3
     df = allcombinations({  # 'm' : 100,
-        'm': logspace(2, n, 7, integer=True),
+        'm': logspace(100, n, 7, integer=True),
         # "sampling_type": ["adjusted_Ber", "deterministic", "Ber", "wor", "wr"],
         "sampling_type": ["wr", "wor", "adjusted_Ber"],
         "sampling_dist_type": "optimized",
         "sparsity": "top",
     })
 
-    df = repeat(df, 4)
+    df = repeat(df, 40)
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, 'k': 5000, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
+        {'sqt_n': sqt_n, 'k': 200, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
          'sigma': 0.0,
          'img': "celeba",
          "preconditioned_optimization": True,
@@ -136,7 +136,7 @@ def make_df():
          "num_cpus": "1",
          "num_gpus": "0",
          "time": "01:00:00",
-         "rows_per_worker": 10})
+         "rows_per_worker": 40})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
