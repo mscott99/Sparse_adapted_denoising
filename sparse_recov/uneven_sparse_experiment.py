@@ -138,7 +138,7 @@ def make_df():
          'img': "celeba",
          "preconditioned_optimization": True,
          "alg": "bpdn_projected",
-         "memory": "3G",
+         "memory": "5G",
          "num_cpus": "1",
          "num_gpus": "0",
          "time": "01:00:00",
