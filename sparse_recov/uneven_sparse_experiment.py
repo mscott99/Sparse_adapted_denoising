@@ -142,7 +142,7 @@ def make_df():
          "num_cpus": "1",
          "num_gpus": "0",
          "time": "01:00:00",
-         "rows_per_worker": 10})
+         "rows_per_worker": 5})
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
