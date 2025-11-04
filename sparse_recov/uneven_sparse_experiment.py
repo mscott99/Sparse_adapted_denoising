@@ -113,8 +113,10 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, tr
 def make_df():
     sqt_n = 64
     n = sqt_n**2*3
+    # k=1000
     details = allcombinations({  # 'm' : 100,
-        'm': logspace(5000, n, 7, integer=True),
+       'k': [200, 500, 1000, 4000],
+         'm': logspace(200, n, 7, integer=True) + [9e3],
         "sparsity": "top",
     })
     first = allcombinations({
@@ -127,18 +129,18 @@ def make_df():
     }) 
     prelim = pd.concat([first, second])
     df = cross_merge_dfs(details, prelim)
-    df = repeat(df, 5)
+    df = repeat(df, 2)
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, 'n': n, 'k': 5000, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
+        {'sqt_n': sqt_n, 'n': n, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
          'sigma': 0.0,
          'img': "celeba",
          "preconditioned_optimization": True,
          "alg": "bpdn_projected",
-         "memory": "5G",
+         "memory": "8G",
          "num_cpus": "1",
          "num_gpus": "0",
          "time": "01:00:00",
