@@ -135,7 +135,7 @@ def vae_loss(recon_x: torch.Tensor, x: torch.Tensor, mu: torch.Tensor, logvar: t
     return recon_loss + kl_loss
 
 
-def get_fft_co_with_grad(generator: ConvGenerator, num_samples: int = 15, device: str = 'cpu') -> torch.Tensor:
+def get_fft_co_with_grad(generator: Generator, num_samples: int = 15, device: str = 'cpu') -> torch.Tensor:
     codes = torch.randn(num_samples, generator.k,
                         requires_grad=False).to(device)
     outputs = generator(codes)  # Shape: (num_samples, 1, 28, 28)
@@ -156,12 +156,14 @@ def get_fft_co_with_grad(generator: ConvGenerator, num_samples: int = 15, device
 
 
 def train_vae(vae: ConvVAE, train_loader: DataLoader, epochs: int = 20,
-              lr: float = 1e-3, co_param=0.0, device: str = 'cpu', **kwargs) -> None:
+              lr: float = 1e-3, co_param=0.0, device: str = 'cpu', opt_state=None, **kwargs) -> None:
     """
     Train the convolutional VAE on MNIST.
     """
     vae.to(device)
     optimizer = optim.Adam(vae.parameters(), lr=lr)
+    if opt_state:
+        optimizer.load_state_dict(opt_state)
 
     vae.train()
     for epoch in range(epochs):
