@@ -111,7 +111,7 @@ def truncate_to_sparsity(image: np.ndarray, k: int, to_wavelet, from_wavelet, tr
 
 
 def make_df():
-    sqt_n = 128
+    sqt_n = 64
     n = sqt_n**2*3
     details = allcombinations({  # 'm' : 100,
         'm': logspace(5000, n, 7, integer=True),
@@ -133,7 +133,7 @@ def make_df():
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     add_standard_attributes(df)
     df.attrs.update(
-        {'sqt_n': sqt_n, 'k': 5000, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
+        {'sqt_n': sqt_n, 'n': n, 'k': 5000, "max_iter": 1e4, "label": "sparse", "global_seed": global_seed, "save_img": False, "level": 3, "save_sampling": False,
          'sigma': 0.0,
          'img': "celeba",
          "preconditioned_optimization": True,
