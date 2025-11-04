@@ -29,14 +29,14 @@ def r_loss(y_train, y_pred):
     r_loss = torch.mean((y_train - y_pred) ** 2)
     return r_loss
 
-def co_loss(vae:VAE):
+def coherence_loss(vae:VAE):
     return -torch.sum(get_fft_co_with_grad(VAEWrapper(vae), 15))
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cuda", default=False, action="store_true", help="Enable CUDA")
     parser.add_argument("--data_dir", help="Folder where the data is located")
-    parser.add_argument("--epochs", type=int, help='Number of times to iterate the whole dataset')
+    parser.add_argument("--epochs", default=1, type=int, help='Number of times to iterate the whole dataset')
     parser.add_argument("--visual_every", default=200, type=int, help='Display faces every n batches')
     parser.add_argument("--z_dim", type=int, default=200, help='Dimensions of latent space')
     parser.add_argument("--r_loss_factor", type=float, default=10000.0, help='r_loss factor')
@@ -49,6 +49,7 @@ def main():
 
     model_dir = os.getenv("MODEL_DIR")
     assert  model_dir != None, "MODEL_DIR not set."
+    assert model_dir != None, "MODEL_DIR not set."
     model_dir = Path(model_dir)
 
     args = parser.parse_args()
@@ -72,26 +73,17 @@ def main():
     # create model
     input_shape = next(iter(trainloader))[0].shape
     vae = VAE(input_shape[-3:], args.z_dim).to(device)
-    print(vae)          # print for feedback
-
-
     optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
     if args.starting_state:
-        assert model_dir != None, "MODEL_DIR not set."
-        saved_state = torch.load(os.path.join(model_dir, args.starting_state))
-        if "model" in saved_state.keys() and saved_state.model:
-            vae.load_state_dict(saved_state.model)
-        if "optimizer" in saved_state.keys() and saved_state.optimizer:
-            optimizer.load_state_dict(saved_state.optimizer)
-
-    # load previous weights (if any)
-    if args.load is not '':
-        dump = torch.load(args.load)
-        vae.load_state_dict(dump['state_dict'])
-        if "opt_state" in dump:
-            optimizer.load_state_dict(dump['opt_state'])
-        print("Weights loaded: {}".format(args.load))
+        saved_state = torch.load(os.path.join(model_dir, args.starting_state), weights_only=False)
+        print(os.path.join(model_dir, args.starting_state))
+        if "state_dict" in saved_state.keys() and saved_state['state_dict']:
+            vae.load_state_dict(saved_state['state_dict'])
+            print("Weights loaded")
+        if "opt_state" in saved_state.keys() and saved_state['opt_state']:
+            optimizer.load_state_dict(saved_state['opt_state'])
+            print("Optimizer loaded")
 
     # create tensorboard writer
     writer = SummaryWriter(comment= args.prefix + str(args.z_dim))
@@ -105,6 +97,7 @@ def main():
     vae.train()
     for e in range(args.epochs):
         epoch_loss = []
+        epoch_co_loss = []
         for images, _ in trainloader:
             images_v = images.to(device)
 
@@ -113,16 +106,19 @@ def main():
             mu_v, log_var_v, images_out_v = vae(images_v)
             r_loss_v = r_loss(images_out_v, images_v)
             kl_loss_v = kl_loss(mu_v, log_var_v)
-            loss = kl_loss_v + r_loss_v * args.r_loss_factor
+            co_loss = args.co_loss_coeff * coherence_loss(vae)
+            loss = kl_loss_v + r_loss_v * args.r_loss_factor + co_loss
             loss.backward()
             optimizer.step()
 
             epoch_loss.append(loss.item())
+            epoch_co_loss.append(co_loss.item())
 
             if batch_iterations % args.visual_every == 0:
                 # print loss
                 print("Batch: {}\tLoss: {}".format(batch_iterations + e * len(trainloader) / args.batch_size, loss.item()))
                 writer.add_scalar('loss', np.mean(epoch_loss[-args.visual_every:]), batch_iterations)
+                writer.add_scalar('co_loss', np.mean(epoch_co_loss[-args.visual_every:]), batch_iterations)
 
 
             batch_iterations = batch_iterations + 1
