@@ -116,7 +116,7 @@ def make_df():
     # k=1000
     details = allcombinations({  # 'm' : 100,
        'k': [200, 500, 1000, 4000],
-         'm': logspace(200, n, 7, integer=True) + [9e3],
+         'm': np.concat([logspace(200, n, 7, integer=True), [9e3]]),
         "sparsity": "top",
     })
     first = allcombinations({
