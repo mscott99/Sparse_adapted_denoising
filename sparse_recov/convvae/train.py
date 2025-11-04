@@ -3,16 +3,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 from torchvision.datasets.celeba import CelebA
+import os
+import tempfile
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, transforms, utils
+from sparse_recov.train_model import VAEWrapper
 from tensorboardX import SummaryWriter
 
+from sparse_recov.train_model import get_fft_co_with_grad
+
+from typing import Callable
 import argparse
 
-import model
+from model import VAE
 
 def kl_loss(mu, log_var):
     # TODO: dividir entre el numero de batches? 
@@ -21,6 +28,9 @@ def kl_loss(mu, log_var):
 def r_loss(y_train, y_pred):
     r_loss = torch.mean((y_train - y_pred) ** 2)
     return r_loss
+
+def co_loss(vae:VAE):
+    return -torch.sum(get_fft_co_with_grad(VAEWrapper(vae), 15))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -33,22 +43,21 @@ def main():
     parser.add_argument("--lr", type=float, default=0.002, help='Learning rate')
     parser.add_argument("--batch_size", default=32, type=int, help='Batch size')
     parser.add_argument("--load", type=str, default='', help='Load pretrained weights')
+    parser.add_argument("--co_loss_coeff", type=float, default=0.0, help="Fourier coherence loss coefficient")
+    parser.add_argument("--starting_state", type=str, help="File name of checkpoint, located in $MODEL_DIR.")
+    parser.add_argument("--prefix", type=str, default="vae-", help="checkpoint file name.")
+
+    model_dir = os.getenv("MODEL_DIR")
+    assert  model_dir != None, "MODEL_DIR not set."
+    model_dir = Path(model_dir)
+
     args = parser.parse_args()
-
+    save_dir = tempfile.mkdtemp(prefix=args.prefix, dir=model_dir)
     # data where the images are located
-    data_dir = args.data_dir
-    assert isinstance(data_dir, str)
-    assert isinstance(args.epochs, int)
-    assert isinstance(args.visual_every, int)
-    assert isinstance(args.z_dim, int)
-    assert isinstance(args.r_loss_factor, float)
-    assert isinstance(args.lr, float)
-    assert isinstance(args.batch_size, int)
-
-    # use CPU or GPU
+    data_dir = os.getenv("DATA_DIR")
+    assert  data_dir != None, "DATA_DIR not set."
+    data_dir = Path(data_dir)
     device = torch.device("cuda" if args.cuda else "cpu")
-
-    # prepare data
     train_transforms = transforms.Compose([
         # transforms.Resize((176, 144)),
         transforms.Resize((128, 112)),
@@ -62,10 +71,20 @@ def main():
 
     # create model
     input_shape = next(iter(trainloader))[0].shape
-    vae = model.VAE(input_shape[-3:], args.z_dim).to(device)
+    vae = VAE(input_shape[-3:], args.z_dim).to(device)
     print(vae)          # print for feedback
 
+
     optimizer = optim.Adam(vae.parameters(), lr=args.lr)
+
+    if args.starting_state:
+        assert model_dir != None, "MODEL_DIR not set."
+        saved_state = torch.load(os.path.join(model_dir, args.starting_state))
+        if "model" in saved_state.keys() and saved_state.model:
+            vae.load_state_dict(saved_state.model)
+        if "optimizer" in saved_state.keys() and saved_state.optimizer:
+            optimizer.load_state_dict(saved_state.optimizer)
+
     # load previous weights (if any)
     if args.load is not '':
         dump = torch.load(args.load)
@@ -75,7 +94,7 @@ def main():
         print("Weights loaded: {}".format(args.load))
 
     # create tensorboard writer
-    writer = SummaryWriter(comment='-' + 'VAE' + str(args.z_dim))
+    writer = SummaryWriter(comment= args.prefix + str(args.z_dim))
 
     # generate random points in latent space so we can see how the network is training
     latent_space_test_points = np.random.normal(scale=1.0, size=(16, args.z_dim))
@@ -111,7 +130,7 @@ def main():
         else:
             training_losses.append(np.mean(epoch_loss))
             if min(training_losses) == training_losses[-1]:
-                vae.save('vae-' + str(args.z_dim) + '.dat', opt_state=optimizer.state_dict())
+                vae.save(os.path.join(save_dir, 'vae_epoch_' + str(e) + '.pth'), opt_state=optimizer.state_dict(), train_settings=args)
 
             vae.eval()
 

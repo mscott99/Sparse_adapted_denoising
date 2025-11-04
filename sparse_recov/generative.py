@@ -129,7 +129,8 @@ ExperimentTypes = {
     "opt_tol_stop": float,
     "beta1": float,
     "beta2": float,
-    'model_type': 'str', #pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"])
+    # pd.CategoricalDtype(["perturbed", "trained", "heavy_tail", "co_heavy_tail", "conv_celeba"])
+    'model_type': 'str',
     'true_signal_dist': pd.CategoricalDtype(["train", "test", "random"]),
     'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"]),
     'project_to_prior': bool,
@@ -137,13 +138,11 @@ ExperimentTypes = {
 
 
 def make_df():
-    n=256**2*3
-    # n = 28**2  
     df = allcombinations({
         # Number of measurements
-        # 'm': 28**2,  
-        'm': [2,8,64],
-        # 'm': logspace(int(2), 28**2, 7, integer=True),
+        # 'm': 28**2,
+        # 'm': [2,8,64],
+        'm': logspace(int(2), 128*112*3, 7, integer=True),
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         # 'sigma': [0.0, 0.1, 0.5, 1.0],  # Noise levels
@@ -155,19 +154,20 @@ def make_df():
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'true_signal_dist': 'random',
         'project_to_prior': False,
-        'sampling_type': ['adjusted_Ber'],
-        'sampling_dist_type': ['optimized', 'uniform'],
         'preconditioned_optimization': [True],
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
-        'max_iter': [3],  # Maximum number of iterations
+        'max_iter': [4],  # Maximum number of iterations
         'opt_tol_stop': [0.0001],
-        'num_repeats_in_optim': [5],  # Batch size for optimization (number of parallel attempts)
+        # Batch size for optimization (number of parallel attempts)
+        'num_repeats_in_optim': [5],
         # Number of optimization repeats (batch size in recover_signal)
         'model_type': ['vae-200'],  # Model type for the generator
+        'sampling_type': ['adjusted_Ber', 'wr', 'wor'],
+        'sampling_dist_type': 'optimized',
     })
-    df = repeat(df, 2)
+    df = repeat(df, 200)
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
@@ -182,6 +182,11 @@ def make_df():
         'save_sampling': False,
         'save_opt_data': False,
         'dataset': 'CELEBA',
+        "memory": "3G",
+        "num_cpus": "2",
+        "num_gpus": "1",
+        "time": "01:00:00",
+        "rows_per_worker": 500
     })
     add_standard_attributes(df)
     df = soft_astype_df(df, ExperimentTypes)
@@ -231,7 +236,7 @@ def experiment(data: dict) -> dict[str, Any]:
     elif data['model_type'] == "conv_celeba":
         generator = VAEWrapper(convvae.get_model())
         input_shape = generator.output_shape
-    else: # Here model_type is basename of file pth.
+    else:  # Here model_type is basename of file pth.
         full_model = convvae.get_model(data['model_type']).eval()
         generator = VAEWrapper(full_model).to(device)
         input_shape = generator.output_shape
@@ -239,92 +244,93 @@ def experiment(data: dict) -> dict[str, Any]:
     generator.to(device)
     # Override n because the wavelet transform may change it slightly
     loc_co = get_fft_loc_coherences(generator, device=device)
-    try:
-        indices, d = sample_CS_matrix(
-            loc_co, m, data['sampling_type'], data['sampling_dist_type'])
-        if "prec_exponent" in data:
-            d = (d**(-2))**data["prec_exponent"]
-        d = torch.tensor(d).to(device)
-        m_tld = indices.size
+    n = loc_co.size
+    indices, d = sample_CS_matrix(
+        loc_co, m, data['sampling_type'], data['sampling_dist_type'])
+    if "prec_exponent" in data:
+        d = (d**(-2))**data["prec_exponent"]
+    d = torch.tensor(d).to(device)
+    m_tld = indices.size
 
-        if "true_signal_dist" not in data or data["true_signal_dist"] == "random":
-            true_signal = generate_random_signal(generator, data['k']).to(device).squeeze(0)
-        elif data["true_signal_dist"] in ["test", "train"]:
-            # raise NotImplementedError("Only random is implemented")
-            assert "dataset" in data
-            if data["dataset"] == "CELEBA":
-                n = 128*112*3
-                train_transforms = transforms.Compose([
-                    transforms.Resize((128, 112)),
-                    transforms.ToTensor(),
-                ])
-                data_dir = os.getenv("DATA_DIR")
-                assert data_dir is not None
-                train_data = torchvision.datasets.CelebA(data_dir, target_type = "identity", split=data["true_signal_dist"], transform = train_transforms, download = False)
-                random_idx = np.random.randint(0, int(len(train_data)))
-                true_signal, _ = train_data[random_idx]
-                true_signal = true_signal.to(device)
-                # full_data = datasets.ImageFolder(
-                #     "./datasets/celeba", transform=train_transforms)
-                # # Sample one random image from the dataset
-                #     random_idx = np.random.randint(0, int(len(full_data)*0.8))
-                # else:
-                #     random_idx = np.random.randint(
-                #         int(len(full_data)*0.8), len(full_data))
-                if "project_to_prior" in data and data['project_to_prior']:
-                    true_signal, _, _, _, _, _ = exterior_redo_recover_signal(generator, true_signal, data['k'], lr = data['lr'], num_tries=data['num_repeats_in_optim'], max_iter=data['max_iter'], tol_stop=data['opt_tol_stop'], device=device)
-                # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
-            else:
-                raise NotImplementedError("Implement dataset: ", data["dataset"])
+    if "true_signal_dist" not in data or data["true_signal_dist"] == "random":
+        true_signal = generate_random_signal(
+            generator, data['k']).to(device).squeeze(0)
+    elif data["true_signal_dist"] in ["test", "train"]:
+        # raise NotImplementedError("Only random is implemented")
+        assert "dataset" in data
+        if data["dataset"] == "CELEBA":
+            n = 128*112*3
+            train_transforms = transforms.Compose([
+                transforms.Resize((128, 112)),
+                transforms.ToTensor(),
+            ])
+            data_dir = os.getenv("DATA_DIR")
+            assert data_dir is not None
+            train_data = torchvision.datasets.CelebA(
+                data_dir, target_type="identity", split=data["true_signal_dist"], transform=train_transforms, download=False)
+            random_idx = np.random.randint(0, int(len(train_data)))
+            true_signal, _ = train_data[random_idx]
+            true_signal = true_signal.to(device)
+            # full_data = datasets.ImageFolder(
+            #     "./datasets/celeba", transform=train_transforms)
+            # # Sample one random image from the dataset
+            #     random_idx = np.random.randint(0, int(len(full_data)*0.8))
+            # else:
+            #     random_idx = np.random.randint(
+            #         int(len(full_data)*0.8), len(full_data))
+            if "project_to_prior" in data and data['project_to_prior']:
+                true_signal, _, _, _, _, _ = exterior_redo_recover_signal(
+                    generator, true_signal, data['k'], lr=data['lr'], num_tries=data['num_repeats_in_optim'], max_iter=data['max_iter'], tol_stop=data['opt_tol_stop'], device=device)
+            # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
-            raise NotImplementedError()
+            raise NotImplementedError("Implement dataset: ", data["dataset"])
+    else:
+        raise NotImplementedError()
 
-        # Signal acquisition
-        SF = SubsampledFourierMatrix(indices, m, input_shape).to(device)
-        signal = SF(true_signal.unsqueeze(0)).squeeze(0)
-        noise = torch.tensor(
-            1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
-        b = signal + noise
+    # Signal acquisition
+    SF = SubsampledFourierMatrix(indices, m, input_shape).to(device)
+    signal = SF(true_signal.unsqueeze(0)).squeeze(0)
+    noise = torch.tensor(
+        1/np.sqrt(m) * data['sigma'] * np.random.randn(m_tld)).to(device)
+    b = signal + noise
 
-        SDF = SF
-        btld = b
-        if 'preconditioned_optimization' in data.keys() and data['preconditioned_optimization']:
-            # if data['sampling_type'] == 'Ber':
-            #     raise NotImplementedError(
-            #         "Bernoulli sampling with preconditioned opt not implemented")
-            dtld = d[indices]
-            SDF = preconditionedSubsampledFourierMatrix(SF, dtld)
-            btld = dtld*b
-        SDF.to(device)
-        btld.to(device)
-        x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = exterior_redo_recover_signal(
-            generator, btld, latent_dim = data['k'], A = SDF, max_iter = data['max_iter'], lr = data['lr'], num_tries=data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
+    SDF = SF
+    btld = b
+    if 'preconditioned_optimization' in data.keys() and data['preconditioned_optimization']:
+        # if data['sampling_type'] == 'Ber':
+        #     raise NotImplementedError(
+        #         "Bernoulli sampling with preconditioned opt not implemented")
+        dtld = d[indices]
+        SDF = preconditionedSubsampledFourierMatrix(SF, dtld)
+        btld = dtld*b
+    SDF.to(device)
+    btld.to(device)
+    x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = exterior_redo_recover_signal(
+        generator, btld, latent_dim=data['k'], A=SDF, max_iter=data['max_iter'], lr=data['lr'], num_tries=data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
 
-        #return_dict['reconstructed_img'] = full_model.forward(true_signal.unsqueeze(0))[2].squeeze(0).cpu().numpy()
-        true_signal = true_signal.cpu().numpy()
-        x_hat = x_hat.cpu().numpy()
-        # Return relevant data.
-        signal_mag = np.linalg.norm(signal.cpu().numpy())
-        noise_mag = np.linalg.norm(noise.cpu().numpy())
-        if noise_mag == 0:
-            emp_snr = np.inf
-        else:
-            emp_snr = signal_mag / noise_mag
-        # optim_info = {'resid': resid, 'grad': grad, 'info': info}
-        re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
-        run_time = time()-start_time
-        return_dict.update({'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "generative", "m_tld": m_tld,
-                       'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss, "tol_stopped": tol_stopped,
-                       "last_tol_iter": last_opt_iter, 'n': n})
-        if 'save_img' in data and data['save_img']:
-            return_dict['recovered_signal'] = x_hat
-            return_dict['true_signal'] = true_signal
-        if 'save_sampling' in data and data['save_sampling']:
-            return_dict['indices'] = indices
-        if 'save_opt_data' in data and data['save_opt_data']:
-            return_dict['opt_data'] = opt_data
-            return_dict['test_losses'] = test_losses
+    # return_dict['reconstructed_img'] = full_model.forward(true_signal.unsqueeze(0))[2].squeeze(0).cpu().numpy()
+    true_signal = true_signal.cpu().numpy()
+    x_hat = x_hat.cpu().numpy()
+    # Return relevant data.
+    signal_mag = np.linalg.norm(signal.cpu().numpy())
+    noise_mag = np.linalg.norm(noise.cpu().numpy())
+    if noise_mag == 0:
+        emp_snr = np.inf
+    else:
+        emp_snr = signal_mag / noise_mag
+    # optim_info = {'resid': resid, 'grad': grad, 'info': info}
+    re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
+    run_time = time()-start_time
+    return_dict.update({'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "generative", "m_tld": m_tld,
+                        'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss, "tol_stopped": tol_stopped,
+                        "last_tol_iter": last_opt_iter, 'n': n})
+    if 'save_img' in data and data['save_img']:
+        return_dict['recovered_signal'] = x_hat
+        return_dict['true_signal'] = true_signal
+    if 'save_sampling' in data and data['save_sampling']:
+        return_dict['indices'] = indices
+    if 'save_opt_data' in data and data['save_opt_data']:
+        return_dict['opt_data'] = opt_data
+        return_dict['test_losses'] = test_losses
 
-        return return_dict
-    except Exception as e:
-        return {'ERROR': str(e)}
+    return return_dict

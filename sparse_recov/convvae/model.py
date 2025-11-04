@@ -105,12 +105,12 @@ class VAE(nn.Module):
         self.conv_out_shape = out.size()
         return int(np.prod(self.conv_out_shape))
 
-    def save(self, where, opt_state = None):
+    def save(self, where, opt_state, train_settings):
         dump = {'z_dim': self.z_dim,
                 'input_shape': self.input_shape,
-                'state_dict': self.state_dict()}
-        if opt_state != None:
-            dump['opt_state']=opt_state
+                'state_dict': self.state_dict(),
+                'opt_state': opt_state,
+                'train_settings': train_settings}
         torch.save(dump, where)
 
     def forward_no_epsilon(self, x):

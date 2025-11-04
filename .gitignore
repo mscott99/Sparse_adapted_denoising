@@ -6,6 +6,7 @@ datasets
 models
 .venv
 .venv/*
+setup.zip
 *.pth
 *.ipynb
 *.mchat

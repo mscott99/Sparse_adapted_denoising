@@ -196,23 +196,23 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type)-> Tuple[NDArr
         assert m <= n, "Bernoulli sampling requires m less than n"
         if sampling_dist_type == "optimized":
             weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
-            d = np.zeros_like(weights)
-            d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
         elif sampling_dist_type == "uniform":
-            weights = m/n
+            weights = np.repeat(m/n,n)
         else:
             raise NotImplementedError()
+        d = np.zeros_like(weights)
+        d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
         indices = np.where(np.random.rand(n) < weights)[0]
     elif sampling_type == "adjusted_Ber":
-        assert m <= n, "Bernoulli sampling requires m less than n"
+        assert m <= n, "Bernoulli sampling requires m (" +str(m) + ") less than n (" + str(n)+ ")."
         if sampling_dist_type == "optimized":
             weights = Bernoulli_prob_weights(loc_co, m)[0].ravel()
-            d = np.zeros_like(weights)
-            d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
         elif sampling_dist_type == "uniform":
-            weights = m/n
+            weights = np.repeat(m/n,n)
         else:
             raise NotImplementedError()
+        d = np.zeros_like(weights)
+        d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
         MAX_NUMTRIES= int(1e4)
         indices = None
         for i in range(MAX_NUMTRIES):
