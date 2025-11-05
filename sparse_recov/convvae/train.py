@@ -106,19 +106,24 @@ def main():
             mu_v, log_var_v, images_out_v = vae(images_v)
             r_loss_v = r_loss(images_out_v, images_v)
             kl_loss_v = kl_loss(mu_v, log_var_v)
-            co_loss = args.co_loss_coeff * coherence_loss(vae)
-            loss = kl_loss_v + r_loss_v * args.r_loss_factor + co_loss
+            loss = kl_loss_v + r_loss_v * args.r_loss_factor
+
+            if args.co_loss_coeff != 0.0:
+                raw_co = coherence_loss(vae)
+                loss += args.co_loss_coeff * raw_co 
+                epoch_co_loss.append(raw_co.item())
+
             loss.backward()
             optimizer.step()
 
             epoch_loss.append(loss.item())
-            epoch_co_loss.append(co_loss.item())
 
             if batch_iterations % args.visual_every == 0:
                 # print loss
                 print("Batch: {}\tLoss: {}".format(batch_iterations + e * len(trainloader) / args.batch_size, loss.item()))
                 writer.add_scalar('loss', np.mean(epoch_loss[-args.visual_every:]), batch_iterations)
-                writer.add_scalar('co_loss', np.mean(epoch_co_loss[-args.visual_every:]), batch_iterations)
+                if args.co_loss_coeff != 0.0:
+                    writer.add_scalar('co_loss', np.mean(epoch_co_loss[-args.visual_every:]), batch_iterations)
 
 
             batch_iterations = batch_iterations + 1
