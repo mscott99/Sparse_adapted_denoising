@@ -115,7 +115,7 @@ def make_df():
     n = sqt_n**2*3
     # k=1000
     details = allcombinations({  # 'm' : 100,
-        'm': np.concat(logspace(500, n, 7, integer=True)),
+        'm': logspace(500, n, 7, integer=True),
         "sparsity": "top",
     })
     first = allcombinations({
