@@ -114,20 +114,12 @@ def make_df():
     sqt_n = 64
     n = sqt_n**2*3
     # k=1000
-    details = allcombinations({  # 'm' : 100,
+    df = allcombinations({  # 'm' : 100,
         'm': logspace(500, n, 7, integer=True),
         "sparsity": "top",
+        "sampling_type": ["adjusted_Ber", "wor", "wr"],
+        "sampling_dist_type": "optimized",
     })
-    first = allcombinations({
-        "sampling_type": "deterministic",
-        "sampling_dist_type": "robust"
-    })
-    second = allcombinations({
-        "sampling_type": "adjusted_Ber",
-        "sampling_dist_type": ["optimized", "uniform"]
-    }) 
-    prelim = pd.concat([first, second])
-    df = cross_merge_dfs(details, prelim)
     df = repeat(df, 20)
     global_seed = 1234
     np.random.seed(global_seed)
