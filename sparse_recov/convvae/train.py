@@ -142,7 +142,6 @@ def main():
 
             generated_imgs_v = vae.forward_decoder(latent_space_test_points_v).detach()
             imgs_grid = utils.make_grid(generated_imgs_v)
-
             writer.add_image('preview-1', imgs_grid.cpu().numpy(), batch_iterations)
 
             vae.train()
