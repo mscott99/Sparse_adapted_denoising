@@ -109,9 +109,9 @@ def main():
             loss = kl_loss_v + r_loss_v * args.r_loss_factor
 
             if args.co_loss_coeff != 0.0:
-                raw_co = coherence_loss(vae)
-                loss += args.co_loss_coeff * raw_co 
-                epoch_co_loss.append(raw_co.item())
+                co_loss = args.co_loss_coeff * coherence_loss(vae)
+                loss +=  co_loss
+                epoch_co_loss.append(co_loss.item())
 
             loss.backward()
             optimizer.step()
