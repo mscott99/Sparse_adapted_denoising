@@ -77,7 +77,6 @@ def main():
 
     if args.starting_state:
         saved_state = torch.load(os.path.join(model_dir, args.starting_state), weights_only=False)
-        print(os.path.join(model_dir, args.starting_state))
         if "state_dict" in saved_state.keys() and saved_state['state_dict']:
             vae.load_state_dict(saved_state['state_dict'])
             print("Weights loaded")
