@@ -124,7 +124,7 @@ def main():
                 writer.add_scalar('loss', np.mean(epoch_loss[-args.visual_every:]), batch_iterations)
                 if args.co_loss_coeff != 0.0:
                     writer.add_scalar('co_loss', np.mean(epoch_co_loss[-args.visual_every:]), batch_iterations)
-
+                    writer.add_scalar('remainder', np.mean(epoch_loss[-args.visual_every:]) - np.mean(epoch_co_loss[-args.visual_every:]), batch_iterations)
 
             batch_iterations = batch_iterations + 1
 
