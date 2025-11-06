@@ -29,8 +29,8 @@ def r_loss(y_train, y_pred):
     r_loss = torch.mean((y_train - y_pred) ** 2)
     return r_loss
 
-def coherence_loss(vae:VAE):
-    return -torch.sum(get_fft_co_with_grad(VAEWrapper(vae), 15))
+def coherence_loss(vae:VAE, device):
+    return -torch.sum(get_fft_co_with_grad(VAEWrapper(vae), 15, device=device))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -107,7 +107,7 @@ def main():
             loss = kl_loss_v + r_loss_v * args.r_loss_factor
 
             if args.co_loss_coeff != 0.0:
-                co_loss = args.co_loss_coeff * coherence_loss(vae)
+                co_loss = args.co_loss_coeff * coherence_loss(vae, device)
                 loss += co_loss
                 epoch_co_loss.append(co_loss.item())
 
