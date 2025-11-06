@@ -34,7 +34,6 @@ def coherence_loss(vae:VAE):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cuda", default=False, action="store_true", help="Enable CUDA")
     parser.add_argument("--data_dir", help="Folder where the data is located")
     parser.add_argument("--epochs", default=1, type=int, help='Number of times to iterate the whole dataset')
     parser.add_argument("--visual_every", default=200, type=int, help='Display faces every n batches')
@@ -58,7 +57,7 @@ def main():
     data_dir = os.getenv("DATA_DIR")
     assert  data_dir != None, "DATA_DIR not set."
     data_dir = Path(data_dir)
-    device = torch.device("cuda" if args.cuda else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     train_transforms = transforms.Compose([
         # transforms.Resize((176, 144)),
         transforms.Resize((128, 112)),
@@ -76,7 +75,7 @@ def main():
     optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
     if args.starting_state:
-        saved_state = torch.load(os.path.join(model_dir, args.starting_state), weights_only=False)
+        saved_state = torch.load(os.path.join(model_dir, args.starting_state), map_location=device, weights_only=False)
         if "state_dict" in saved_state.keys() and saved_state['state_dict']:
             vae.load_state_dict(saved_state['state_dict'])
             print("Weights loaded")
@@ -109,7 +108,7 @@ def main():
 
             if args.co_loss_coeff != 0.0:
                 co_loss = args.co_loss_coeff * coherence_loss(vae)
-                loss +=  co_loss
+                loss += co_loss
                 epoch_co_loss.append(co_loss.item())
 
             loss.backward()
