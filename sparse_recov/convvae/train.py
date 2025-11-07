@@ -71,7 +71,7 @@ def main():
 
     # create model
     input_shape = next(iter(trainloader))[0].shape
-    vae = VAE(input_shape[-3:], args.z_dim, device).to(device)
+    vae = VAE(input_shape[-3:], args.z_dim).to(device)
     optimizer = optim.Adam(vae.parameters(), lr=args.lr)
 
     if args.starting_state:

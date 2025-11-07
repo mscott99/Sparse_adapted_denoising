@@ -6,10 +6,10 @@ import torch.nn as nn
 
 
 class VAE(nn.Module):
-    def __init__(self, input_shape, z_dim, device):
+    def __init__(self, input_shape, z_dim):
         super().__init__()
 
-        self.device=device
+        self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.z_dim = z_dim
         self.input_shape = input_shape
 
