@@ -163,18 +163,21 @@ def make_df():
         # Batch size for optimization (number of parallel attempts)
         'num_repeats_in_optim': [5],
         # Number of optimization repeats (batch size in recover_signal)
-        'model_type': ['vae-200'],  # Model type for the generator
+        'model_type': ['to_the_ground_no_co', 'higher_co_02'],  # Model type for the generator
         'sampling_type': ['adjusted_Ber', 'wr', 'wor'],
         'sampling_dist_type': 'optimized',
+        
     })
-    df = repeat(df, 200)
+    df = repeat(df, 20)
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
     np.random.seed(global_seed)
     df['seed'] = [np.random.randint(0, 2**32 - 1) for _ in range(len(df))]
     df.attrs.update({
-        'sqt_n': 28,
-        'n': 256**2*3,
+        # 'sqt_n': 28,
+        # 'n': 256**2*3,
+        'k': 200,
+        'n': 128*112*3,
         'label': 'generative_vanilla',
         'global_seed': global_seed,
         'save_img': True,
