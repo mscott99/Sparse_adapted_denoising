@@ -140,19 +140,9 @@ ExperimentTypes = {
 def make_df():
     df = allcombinations({
         # Number of measurements
-<<<<<<< HEAD
         # 'm': 28**2,
         # 'm': [2,8,64],
         'm': logspace(int(2), 128*112*3, 7, integer=True),
-||||||| 9980fd1
-        # 'm': 28**2,  
-        'm': [2,8,64],
-        # 'm': logspace(int(2), 28**2, 7, integer=True),
-=======
-        # 'm': 28**2,  
-        # 'm': [2,8,64],
-        'm': logspace(int(2), 128*112*3, 7, integer=True),
->>>>>>> all_ber_exps
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         # 'sigma': [0.0, 0.1, 0.5, 1.0],  # Noise levels
@@ -220,31 +210,36 @@ def experiment(data: dict) -> dict[str, Any]:
     np.random.seed(data['seed'])
     start_time = time()
     return_dict = {}
-    sqt_n = int(data['sqt_n'])
-    n = sqt_n**2
     m = data['m']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    input_shape = (1, sqt_n, sqt_n)
+    input_shape=None
     if data['model_type'] == "random":
+        sqt_n = int(data['sqt_n'])
+        input_shape = (1, sqt_n, sqt_n)
         generator = ConvGenerator(data["k"], (sqt_n, sqt_n), [256, 512, 1024])
     elif data['model_type'] == "trained":
         assert data['k'] == 8
         generator = load_saved_model(k=8, file_name="model_weights.pth")
+        input_shape=(1,28,28)
     elif data['model_type'] == "perturbed":
         assert data['k'] == 16
         generator = load_saved_model(
             k=16, file_name="perturbed_model_weights_v4.pth")
+        input_shape=(1,28,28)
     elif data['model_type'] == "heavy_tail":
         assert data['k'] == 16
         generator = load_saved_model(
             k=16, file_name="fat_tail.pth")
+        input_shape=(1,28,28)
     elif data['model_type'] == "co_heavy_tail":
         assert data['k'] == 16
         generator = load_saved_model(
             k=16, file_name="heavy_tail_co_v0.pth")
+        input_shape=(1,28,28)
     elif data['model_type'] == "MNIST_vae_16":
         generator = load_saved_model(
             k=16, file_name="MNIST_vae_16.pth")
+        input_shape=(1,28,28)
     elif data['model_type'] == "conv_celeba":
         generator = VAEWrapper(convvae.get_model())
         input_shape = generator.output_shape
@@ -270,7 +265,6 @@ def experiment(data: dict) -> dict[str, Any]:
         # raise NotImplementedError("Only random is implemented")
         assert "dataset" in data
         if data["dataset"] == "CELEBA":
-            n = 128*112*3
             train_transforms = transforms.Compose([
                 transforms.Resize((128, 112)),
                 transforms.ToTensor(),

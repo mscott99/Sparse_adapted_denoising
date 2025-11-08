@@ -3,6 +3,7 @@ from sparse_recov import make_df, experiment, ExperimentTypes
 from datetime import date
 
 # df = run_local_parallel_experiment(make_df(), experiment)
-df = run_local_df_experiment(make_df(), experiment, catch_errors=True)
+# df = run_local_df_experiment(make_df(), experiment, catch_errors=False)
+df = run_local_df_experiment(make_df().iloc[[0]], experiment, catch_errors=False)
 
 df.to_pickle('./data/last_sparse.pickle')
