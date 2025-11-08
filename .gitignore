@@ -2,6 +2,7 @@ venv
 runs
 *.dat
 data
+plots
 datasets
 models
 .venv

@@ -140,9 +140,19 @@ ExperimentTypes = {
 def make_df():
     df = allcombinations({
         # Number of measurements
+<<<<<<< HEAD
         # 'm': 28**2,
         # 'm': [2,8,64],
         'm': logspace(int(2), 128*112*3, 7, integer=True),
+||||||| 9980fd1
+        # 'm': 28**2,  
+        'm': [2,8,64],
+        # 'm': logspace(int(2), 28**2, 7, integer=True),
+=======
+        # 'm': 28**2,  
+        # 'm': [2,8,64],
+        'm': logspace(int(2), 128*112*3, 7, integer=True),
+>>>>>>> all_ber_exps
         # 'm': 3*128*112,  # logspace(n/2, n, 3, integer=True),
         # 'm':10,
         # 'sigma': [0.0, 0.1, 0.5, 1.0],  # Noise levels
@@ -166,7 +176,6 @@ def make_df():
         'model_type': ['to_the_ground_no_co', 'higher_co_02'],  # Model type for the generator
         'sampling_type': ['adjusted_Ber', 'wr', 'wor'],
         'sampling_dist_type': 'optimized',
-        
     })
     df = repeat(df, 20)
     # df['sampling_type'] = df['sampling_type'].astype('category')
@@ -247,7 +256,7 @@ def experiment(data: dict) -> dict[str, Any]:
     generator.to(device)
     # Override n because the wavelet transform may change it slightly
     loc_co = get_fft_loc_coherences(generator, device=device)
-    n = loc_co.size
+    n=loc_co.size
     indices, d = sample_CS_matrix(
         loc_co, m, data['sampling_type'], data['sampling_dist_type'])
     if "prec_exponent" in data:
@@ -256,8 +265,7 @@ def experiment(data: dict) -> dict[str, Any]:
     m_tld = indices.size
 
     if "true_signal_dist" not in data or data["true_signal_dist"] == "random":
-        true_signal = generate_random_signal(
-            generator, data['k']).to(device).squeeze(0)
+        true_signal = generate_random_signal(generator, data['k']).to(device).squeeze(0)
     elif data["true_signal_dist"] in ["test", "train"]:
         # raise NotImplementedError("Only random is implemented")
         assert "dataset" in data
@@ -269,8 +277,7 @@ def experiment(data: dict) -> dict[str, Any]:
             ])
             data_dir = os.getenv("DATA_DIR")
             assert data_dir is not None
-            train_data = torchvision.datasets.CelebA(
-                data_dir, target_type="identity", split=data["true_signal_dist"], transform=train_transforms, download=False)
+            train_data = torchvision.datasets.CelebA(data_dir, target_type = "identity", split=data["true_signal_dist"], transform = train_transforms, download = False)
             random_idx = np.random.randint(0, int(len(train_data)))
             true_signal, _ = train_data[random_idx]
             true_signal = true_signal.to(device)
@@ -282,8 +289,7 @@ def experiment(data: dict) -> dict[str, Any]:
             #     random_idx = np.random.randint(
             #         int(len(full_data)*0.8), len(full_data))
             if "project_to_prior" in data and data['project_to_prior']:
-                true_signal, _, _, _, _, _ = exterior_redo_recover_signal(
-                    generator, true_signal, data['k'], lr=data['lr'], num_tries=data['num_repeats_in_optim'], max_iter=data['max_iter'], tol_stop=data['opt_tol_stop'], device=device)
+                true_signal, _, _, _, _, _ = exterior_redo_recover_signal(generator, true_signal, data['k'], lr = data['lr'], num_tries=data['num_repeats_in_optim'], max_iter=data['max_iter'], tol_stop=data['opt_tol_stop'], device=device)
             # trainloader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, pin_memory=True)
         else:
             raise NotImplementedError("Implement dataset: ", data["dataset"])
@@ -309,9 +315,9 @@ def experiment(data: dict) -> dict[str, Any]:
     SDF.to(device)
     btld.to(device)
     x_hat, opt_data, test_losses, smallest_loss, tol_stopped, last_opt_iter = exterior_redo_recover_signal(
-        generator, btld, latent_dim=data['k'], A=SDF, max_iter=data['max_iter'], lr=data['lr'], num_tries=data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
+        generator, btld, latent_dim = data['k'], A = SDF, max_iter = data['max_iter'], lr = data['lr'], num_tries=data['num_repeats_in_optim'], tol_stop=data['opt_tol_stop'], beta1=data["beta1"], beta2=data["beta2"], true_signal=true_signal, device=device)
 
-    # return_dict['reconstructed_img'] = full_model.forward(true_signal.unsqueeze(0))[2].squeeze(0).cpu().numpy()
+    #return_dict['reconstructed_img'] = full_model.forward(true_signal.unsqueeze(0))[2].squeeze(0).cpu().numpy()
     true_signal = true_signal.cpu().numpy()
     x_hat = x_hat.cpu().numpy()
     # Return relevant data.
@@ -325,8 +331,8 @@ def experiment(data: dict) -> dict[str, Any]:
     re = np.linalg.norm(x_hat - true_signal)/np.linalg.norm(true_signal)
     run_time = time()-start_time
     return_dict.update({'re': re, 'runtime_seconds': run_time, 'indices': indices, 'experiment_fn_label': "generative", "m_tld": m_tld,
-                        'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss, "tol_stopped": tol_stopped,
-                        "last_tol_iter": last_opt_iter, 'n': n})
+                   'emp_snr': emp_snr, 'noise_mag': noise_mag, 'signal_mag': signal_mag, "smallest_loss": smallest_loss, "tol_stopped": tol_stopped,
+                   "last_tol_iter": last_opt_iter, 'n': n})
     if 'save_img' in data and data['save_img']:
         return_dict['recovered_signal'] = x_hat
         return_dict['true_signal'] = true_signal
