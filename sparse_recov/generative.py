@@ -163,7 +163,8 @@ def make_df():
         # Batch size for optimization (number of parallel attempts)
         'num_repeats_in_optim': [5],
         # Number of optimization repeats (batch size in recover_signal)
-        'model_type': ['to_the_ground_no_co', 'higher_co_02'],  # Model type for the generator
+        # 'model_type': ['to_the_ground_no_co', 'higher_co_02'],  # Model type for the generator
+        'model_type':'higher_co_low_lr',
         'sampling_type': ['adjusted_Ber', 'wr', 'wor'],
         'sampling_dist_type': 'optimized',
     })
