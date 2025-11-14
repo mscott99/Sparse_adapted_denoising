@@ -22,7 +22,6 @@ class Generator(nn.Module, ABC):
 class VAEWrapper(Generator):
     def __init__(self, vae:VAE):
         super().__init__()
-        vae.eval()
         self.decoder_linear = vae.decoder_linear
         self.decoder_conv = vae.decoder_conv
         self.k = vae.z_dim

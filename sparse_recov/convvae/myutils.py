@@ -1,5 +1,5 @@
 import torch
-from . import model
+from sparse_recov.convvae.model import VAE
 import os
 
 
@@ -10,8 +10,8 @@ def get_model(label="vae-200"):
     assert model_dir is not None, "MODEL_DIR is not set."
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     dump = torch.load(os.path.join(model_dir,
-                      f"{label}.dat"), map_location=device)
-    vae = model.VAE(dump['input_shape'], dump['z_dim']).to(device)
+                      f"{label}.pth"), map_location=device, weights_only=False)
+    vae = VAE(dump['input_shape'], dump['z_dim']).to(device)
     vae.load_state_dict(dump['state_dict'])
     vae.requires_grad_(False)
     return vae

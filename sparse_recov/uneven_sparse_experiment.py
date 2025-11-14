@@ -2,7 +2,7 @@
 from utils.utils_data import allcombinations, cross_merge_dfs, repeat, run_local_df_experiment
 import os
 import torchvision
-from torchvision import transforms
+from torchvision import datasets, transforms, utils
 import pandas as pd
 from time import time
 import numpy as np
@@ -47,7 +47,7 @@ def Haar_local_coherence(signal_shape, level: int):
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber", "deterministic"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str, "sparsity": pd.CategoricalDtype(["prop_random", "optimized", "top"])}
+    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.

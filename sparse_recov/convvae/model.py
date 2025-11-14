@@ -9,6 +9,7 @@ class VAE(nn.Module):
     def __init__(self, input_shape, z_dim):
         super().__init__()
 
+        self.device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.z_dim = z_dim
         self.input_shape = input_shape
 
@@ -78,7 +79,7 @@ class VAE(nn.Module):
 
     def sampling(self, mu, log_var):
         ## TODO: epsilon should be at the model's device (not CUDA)
-        epsilon = torch.Tensor(np.random.normal(size=(self.z_dim), scale=1.0)).cuda()
+        epsilon = torch.Tensor(np.random.normal(size=(self.z_dim), scale=1.0)).to(self.device)
         return mu + epsilon * torch.exp(log_var / 2)
 
     def forward_encoder(self, x):
