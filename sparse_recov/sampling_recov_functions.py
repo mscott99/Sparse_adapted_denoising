@@ -1,3 +1,4 @@
+from typing import Tuple
 from scipy import sparse
 from scipy.fft import fft, fft2, ifft, ifft2
 import numpy as np
@@ -43,122 +44,6 @@ def wr_prob_vec(loc_co):
 #     p[perm] = p
 #     return p/ np.sum(p)
 
-# Clean up to put in paper
-
-
-def Optimized_Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
-    pos_co = loc_co[loc_co > 0]
-    n = pos_co.size
-    assert m <= n, "Cannot sample enough measurements given entries with zero coherences cannot be sampled"
-
-    if m == n:
-        samplings = np.zeros_like(loc_co)
-        samplings[loc_co > 0] = 1
-        return samplings, 0, 0.0
-
-    sorted_co = np.sort(pos_co.flat)
-
-    def Lsqrd(j, m, n, sorted_co):
-        assert j > n-m-1
-        assert m <= n
-        assert j <= n-1
-        return m * np.sum(sorted_co[:j+1]**2) / (j-(n-m-1))
-
-    J = None  # Is this right? It is probably never run.
-    for j in range(n-1, n-m-1, -1):
-        if m*sorted_co[j]**2 < Lsqrd(j, m, n, sorted_co):
-            J = j
-            break
-    assert J != None, "Unexpected behaviour: no valid J was found."
-
-    Lsqr = Lsqrd(J, m, n, sorted_co)
-
-    return np.clip(m * loc_co**2 / Lsqr, 0, 1), J, Lsqr
-
-
-def SF_func(indices: NDArray, m, n):
-    return lambda x: np.sqrt(n/m) * fft(x, norm="ortho")[indices]
-
-
-def SF2_func(indices: NDArray[np.integer], m, n):
-    def return_fn(x):
-        here = (np.sqrt(n/m) * fft2(x, norm="ortho")).ravel()
-        return here[indices]
-    return return_fn
-
-
-def SDF2_func(indices, m, n, d):
-    return lambda x: np.sqrt(n/m) * d[indices] * (fft2(x, norm="ortho").ravel())[indices]
-
-
-def half_robust(flat_co):
-    n = len(flat_co)
-    p = flat_co**2/np.sum(flat_co**2)
-    p_first = p[:int(n/2)]
-    tot_second = np.sum(p[int(n/2):])
-    prev_tot_second = np.sum(flat_co[int(n/2):])
-    if prev_tot_second == 0:
-        p_second = np.zeros_like(flat_co[int(n/2):])
-    else:
-        p_second = flat_co[int(n/2):]*tot_second/prev_tot_second
-    return np.concatenate((p_first, p_second), axis=0)
-
-
-def sample_wor(p, m):
-    """
-    Sample without replacement by re-sampling with replacement until all distinct indices are gathered.
-
-    Args:
-        p (array-like): Probabilities associated with each index (should sum to 1).
-
-    Returns:
-        tuple: (indices, counts)
-            - indices: Array of unique sampled indices in order of first appearance.
-            - counts: Array of the number of times each index was sampled.
-    """
-    n = len(p)
-    indices = np.array([])
-    counts = np.zeros(n, dtype=int)
-    assert m >= 1
-    assert len(p) >= 1
-
-    # Maximum allowed iterations (tuned for reasonable runtime, e.g., ~1 second on typical hardware)
-    MAX_ITERATIONS = int(1e7)
-    # Sort probabilities in descending order
-    sorted_p = np.sort(p)[::-1]
-    # Estimate probability of sampling remaining indices
-    if m > 1:
-        # Approximate expected trials using the probability of the least likely needed index
-        min_prob = sorted_p[m-1]  # Smallest probability among the m highest
-        # Expected trials to hit a new index when m-1 are already sampled
-        expected_trials_per_new_index = 1 / min_prob
-        # Rough estimate of total trials (simplified coupon collector approximation)
-        estimated_trials = m * expected_trials_per_new_index
-        if estimated_trials > MAX_ITERATIONS:
-            raise ValueError(
-                f"Sampling {m} distinct indices with given probabilities is expected to take too long "
-                f"(estimated {estimated_trials:.0f} trials). Consider reducing m or adjusting probabilities."
-            )
-
-    batch_size = max(1, int(m * 1.5))
-    while True:
-        samples = np.random.choice(n, size=batch_size, p=p, replace=True)
-        tentative_unique = np.unique(np.concatenate([indices, samples]))
-        if len(tentative_unique) > m:
-            # Discard the attempt. Halve the batch size, and try again.
-            batch_size = max(1, batch_size // 2)
-            continue
-        indices = tentative_unique
-        batch_counts = np.bincount(samples, minlength=n)
-        counts += batch_counts
-        if len(indices) == m:
-            return tentative_unique, counts
-        batch_size = max(1, int((m - len(indices)) * 1.5))
-
-```python
-import numpy as np
-from numpy.typing import NDArray
-from typing import Tuple
 
 def Optimized_Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, int, float]:
     pos_co = loc_co[loc_co > 0]
@@ -188,11 +73,13 @@ def Optimized_Bernoulli_prob_weights(loc_co: NDArray, m: int) -> Tuple[NDArray, 
     Lsqr = Lsqrd(J, m, n, sorted_co)
     return np.clip(m * loc_co ** 2 / Lsqr, 0, 1), J, Lsqr
 
+
 def SF_func(indices: NDArray[np.integer], m, n):
     def return_fn(x):
         here = np.sqrt(n / m) * fft(x, norm="ortho")
         return here[indices]
     return return_fn
+
 
 def SF2_func(indices: NDArray[np.integer], m, n):
     def return_fn(x):
@@ -200,11 +87,13 @@ def SF2_func(indices: NDArray[np.integer], m, n):
         return here[indices]
     return return_fn
 
+
 def SDF2_func(indices, m, n, d):
     def return_fn(x):
         here = np.sqrt(n / m) * fft2(x, norm="ortho").ravel()
         return d[indices] * here[indices]
     return return_fn
+
 
 def half_robust(flat_co):
     n = len(flat_co)
@@ -224,6 +113,7 @@ def half_robust(flat_co):
     p[sorted_idx] = p_sorted
     return p
 
+
 def sample_wor(p, m):
     n = len(p)
     assert m >= 1
@@ -236,7 +126,8 @@ def sample_wor(p, m):
         expected_trials_per_new_index = 1 / min_prob
         estimated_trials = m * expected_trials_per_new_index
         if estimated_trials > MAX_ITERATIONS:
-            raise ValueError(f"Sampling {m} distinct indices is expected to take too long (estimated {estimated_trials:.0f} trials).")
+            raise ValueError(
+                f"Sampling {m} distinct indices is expected to take too long (estimated {estimated_trials:.0f} trials).")
 
     seen = set()
     order = []
@@ -264,6 +155,7 @@ def sample_wor(p, m):
 
     return np.array(order), counts
 
+
 def get_sampling_dist(flat_co, m, n, sampling_dist_type, sampling_type):
     if sampling_dist_type == "uniform":
         if sampling_type in ["Ber", "adjusted_Ber", "deterministic"]:
@@ -285,14 +177,16 @@ def get_sampling_dist(flat_co, m, n, sampling_dist_type, sampling_type):
     elif sampling_dist_type == "half_robust":
         return half_robust(flat_co)
     else:
-        raise NotImplementedError(f"Sampling distribution {sampling_dist_type} not implemented")
+        raise NotImplementedError(
+            f"Sampling distribution {sampling_dist_type} not implemented")
+
 
 def get_precond(precond_type, p=None, weights=None, counts=None, m=None, n=None):
     if precond_type == "wr":
         if p is None:
             raise ValueError("p required for wr preconditioner")
         d = np.zeros_like(p)
-      
+
 # The problem is that precond. depends on probabilities, which may
 # be either weights or wr probs. I need two different functions.
 
@@ -312,7 +206,7 @@ def ber_precond(weights, m, n):
 # def d(co, preconditioner_type, ):
 #     # ["wr", "ber", "emp_wor"]
 #     if preconditioner == "wr":
-#         p = 
+#         p =
 #         d = np.zeros_like(p)
 #         d[p > 0] = 1/np.sqrt(n * p[p > 0])
 #         return d
@@ -325,12 +219,21 @@ def ber_precond(weights, m, n):
 
 
 def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditioner) -> Tuple[NDArray[np.integer], NDArray]:
-    d = np.array([])
     flat_co = loc_co.ravel()
     n = len(flat_co)
-    p = flat_co / np.sum(flat_co)
-    d = d(preconditioner)
-    if sampling_type == "wr":
+    p = None
+    weights = None
+    d = None
+
+    if sampling_type in ["deterministic", "Ber", "adjusted_Ber"]:
+        assert m <= n, "Sampling type requires m less than n"
+
+    if preconditioner is None:
+        preconditioner = sampling_type  # default preconditioner
+
+    # derive prob/weights
+    # p
+    if sampling_type in ["wr", "wor"] or preconditioner in ["wr", "empirical", "wor"]:
         if sampling_dist_type == "robust":
             p = flat_co / np.sum(flat_co)
         elif sampling_dist_type == "half_robust":
@@ -341,51 +244,31 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditione
             p = np.repeat(1/n, n)
         else:
             raise NotImplementedError(
-                "Sampling scheme " + sampling_dist_type+" not implemented")
-        d = np.zeros_like(p)
-        d[p > 0] = 1/np.sqrt(n * p[p > 0])
-        indices = np.random.choice(n, m, replace=True, p=p)
-    elif sampling_type == "wor":
-        if sampling_dist_type == "robust":
-            p = flat_co / np.sum(flat_co)
-        elif sampling_dist_type == "half_robust":
-            p = half_robust(flat_co)
-        elif sampling_dist_type == "optimized":
-            p = flat_co**2/np.sum(flat_co**2)
-        elif sampling_dist_type == "uniform":
-            p = np.repeat(1/n, n)
-        else:
-            raise NotImplementedError(
-                "Sampling scheme " + sampling_dist_type+" not implemented")
-        indices, counts = sample_wor(p, m)
-        d = np.zeros_like(p)
-        d[p > 0] = 1/np.sqrt(n * p[p > 0])
-        prec_c = np.sqrt(counts)
-        # normalize so that the trace is n, like I.
-        normalized_c = prec_c * n/np.sum(prec_c)
-        d = d * normalized_c
-    elif sampling_type == "Ber":
+                "Sampling scheme " + sampling_dist_type + " is not implemented for sampling_type " + sampling_type)
+    # weights
+    if sampling_type in ["Ber", "adjusted_Ber"] or preconditioner in ["Ber", "adjusted_Ber", "deterministic"]:
         assert m <= n, "Bernoulli sampling requires m less than n"
         if sampling_dist_type == "optimized":
             weights = Optimized_Bernoulli_prob_weights(loc_co, m)[0].ravel()
         elif sampling_dist_type == "uniform":
             weights = np.repeat(m/n, n)
+        elif sampling_dist_type == "deterministic":
+            weights = np.zeros_like(flat_co)
+            top_m_indices = np.argsort(flat_co)[-m:]
+            weights[top_m_indices] = 1.0
         else:
             raise NotImplementedError()
-        d = np.zeros_like(weights)
-        d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
+
+    # sample
+    if sampling_type == "wr":
+        indices = np.random.choice(n, m, replace=True, p=p)
+    elif sampling_type == "wor":
+        indices = np.random.choice(n, m, replace=False, p=p)
+    elif sampling_type == "Ber":
+        assert weights is not None
         indices = np.where(np.random.rand(n) < weights)[0]
     elif sampling_type == "adjusted_Ber":
-        assert m <= n, "Bernoulli sampling requires m (" + str(
-            m) + ") less than n (" + str(n) + ")."
-        if sampling_dist_type == "optimized":
-            weights = Optimized_Bernoulli_prob_weights(loc_co, m)[0].ravel()
-        elif sampling_dist_type == "uniform":
-            weights = np.repeat(m/n, n)
-        else:
-            raise NotImplementedError()
-        d = np.zeros_like(weights)
-        d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
+        assert weights is not None
         MAX_NUMTRIES = int(1e4)
         indices = None
         for i in range(MAX_NUMTRIES):
@@ -395,19 +278,34 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditione
         if indices is None:
             raise ValueError("could not sample conditional Bernoulli")
     elif sampling_type == "deterministic":
-        assert m <= n, "Bernoulli sampling requires m less than n"
-        weights = np.zeros_like(flat_co)
-        # Get indices of m largest entries
-        top_m_indices = np.argsort(flat_co)[-m:]
-        weights[top_m_indices] = 1.0
-        d = np.zeros_like(weights)
-        d[weights > 0] = np.sqrt(m / n)
-        indices = np.where(np.random.rand(n) < weights)[0]
+        indices = np.argsort(flat_co)[-m:]
     else:
         raise NotImplementedError()
 
-    if preconditioner is not None:
-        if preconditioner =
+    # precond
+    if preconditioner == "wr":
+        assert p is not None
+        d = np.zeros_like(p)
+        d[p > 0] = 1/np.sqrt(n * p[p > 0])
+    elif sampling_type == "wor" and preconditioner in ["empirical", "wor"]:
+        assert p is not None
+        indices, counts = sample_wor(p, m)
+        d = np.zeros_like(p)
+        d[p > 0] = 1/np.sqrt(n * p[p > 0])
+        prec_c = np.sqrt(counts)
+        # normalize so that the trace is n, like I.
+        normalized_c = prec_c * n/np.sum(prec_c)
+        d = d * normalized_c
+    elif preconditioner in ["Ber", "adjusted_Ber"]:
+        assert weights is not None
+        d = np.zeros_like(weights)
+        d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
+    elif preconditioner == "deterministic":
+        assert weights is not None
+        d = np.zeros_like(weights)
+        d[weights > 0] = np.sqrt(m / n)
+    else:
+        raise NotImplementedError()
 
     return (indices.astype(int), d)
 

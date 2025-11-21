@@ -124,7 +124,8 @@ ExperimentTypes = {
     'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
     'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
     'sampling_type': pd.CategoricalDtype(['wr', 'Ber', 'wor', 'adjusted_Ber', 'deterministic']),
-    'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust']),
+    'preconditioner': pd.CategoricalDtype(['wr', 'Ber', 'wor', 'adjusted_Ber', 'deterministic', 'empirical']),
+    'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust', 'deterministic']),
     'emp_snr': float, 'preconditioned_optimization': bool,
     "opt_tol_stop": float,
     "beta1": float,
@@ -153,8 +154,9 @@ def make_df():
         # 'preconditioned_optimization': [True, False],
         # 'sampling_type': ['wr', 'wor', 'Ber', 'adjusted_Ber'],
         'true_signal_dist': 'random',
-        'project_to_prior': False,
+        # 'project_to_prior': False,
         'preconditioned_optimization': [True],
+        'preconditioner': ["empirical", "Ber"],
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],
@@ -164,8 +166,8 @@ def make_df():
         'num_repeats_in_optim': [5],
         # Number of optimization repeats (batch size in recover_signal)
         # 'model_type': ['to_the_ground_no_co', 'higher_co_02'],  # Model type for the generator
-        'model_type':'higher_co_low_lr',
-        'sampling_type': ['adjusted_Ber', 'wr', 'wor'],
+        'model_type':'to_the_ground_no_co',
+        'sampling_type': ['wor'],
         'sampling_dist_type': 'optimized',
     })
     df = repeat(df, 20)
@@ -254,7 +256,7 @@ def experiment(data: dict) -> dict[str, Any]:
     loc_co = get_fft_loc_coherences(generator, device=device)
     n=loc_co.size
     indices, d = sample_CS_matrix(
-        loc_co, m, data['sampling_type'], data['sampling_dist_type'])
+        loc_co, m, data['sampling_type'], data['sampling_dist_type'], data['preconditioner'])
     if "prec_exponent" in data:
         d = (d**(-2))**data["prec_exponent"]
     d = torch.tensor(d).to(device)
