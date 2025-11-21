@@ -124,7 +124,7 @@ ExperimentTypes = {
     'sqt_n': int, 'k': int, 'm': int, 'm_tld': int, 'sigma': float,
     'lr': float, 'max_iter': int, 'num_repeats_in_optim': int,
     'sampling_type': pd.CategoricalDtype(['wr', 'Ber', 'wor', 'adjusted_Ber', 'deterministic']),
-    'preconditioner': pd.CategoricalDtype(['wr', 'Ber', 'wor', 'adjusted_Ber', 'deterministic', 'empirical']),
+    'preconditioner': pd.CategoricalDtype(['wr', 'Ber', 'wor', 'adjusted_Ber', 'deterministic', 'empirical', 'cond_poisson']),
     'sampling_dist_type': pd.CategoricalDtype(['uniform', 'optimized', 'robust', 'half_robust', 'deterministic']),
     'emp_snr': float, 'preconditioned_optimization': bool,
     "opt_tol_stop": float,
@@ -156,7 +156,7 @@ def make_df():
         'true_signal_dist': 'random',
         # 'project_to_prior': False,
         'preconditioned_optimization': [True],
-        'preconditioner': ["empirical", "Ber"],
+        'preconditioner': ["empirical", "Ber", "cond_poisson"],
         'lr': [1.0],  # Learning rate for optimization
         'beta1': [0.9],
         'beta2': [0.999],

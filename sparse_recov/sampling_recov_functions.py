@@ -304,6 +304,33 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditione
         assert weights is not None
         d = np.zeros_like(weights)
         d[weights > 0] = np.sqrt(m / n)
+    elif preconditioner == "cond_poisson":                               # ← NEW BRANCH
+        if p is None:
+            raise ValueError(
+                "conditional Poisson preconditioner needs probability vector p")
+
+        # ---- fast bisection to find λ* such that ∑(1-exp(-λ*p_j)) = m ----
+        low = 0.0
+        high = 1.0
+        while np.sum(1.0 - np.exp(-high * p)) < m:
+            high *= 2.0                                      # guarantees we bracket the root
+
+        # 80 iterations → ~1e-24 precision
+        for _ in range(80):
+            mid = (low + high) / 2.0
+            if np.sum(1.0 - np.exp(-mid * p)) < m:
+                low = mid
+            else:
+                high = mid
+
+        lam = (low + high) / 2.0
+
+        # ---- approximate inclusion probabilities π_j ------------------------
+        pi_approx = 1.0 - np.exp(-lam * p)
+        pi_approx = np.maximum(pi_approx, 1e-20)               # safety
+
+        # ---- preconditioning weights -----------------------------------------
+        d = np.sqrt(m / (n * pi_approx))
     else:
         raise NotImplementedError()
 
