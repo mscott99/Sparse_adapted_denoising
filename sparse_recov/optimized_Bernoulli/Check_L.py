@@ -9,7 +9,7 @@ import torchvision
 from torchvision import transforms
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-from sparse_recov.sampling_recov_functions import Bernoulli_prob_weights
+from sparse_recov.sampling_recov_functions import Optimized_Bernoulli_prob_weights
 from utils.utils_data import logspace
 
 
@@ -66,7 +66,7 @@ def plot_L(alpha):
     df = pd.DataFrame({'m': logspace(1, n-1, 1000, base=10, integer=True),
                       'L**2': 0.0, 'loc_co_norm_squared': np.sum(alpha**2), 'm/n': 0.0})
     # df['L**2'] = df['m'].apply(get_calculate_L(n, np.sort(alpha)[::-1]))
-    df['L**2'] = df['m'].apply(lambda m: Bernoulli_prob_weights(alpha, m)[2])
+    df['L**2'] = df['m'].apply(lambda m: Optimized_Bernoulli_prob_weights(alpha, m)[2])
     df['m/n'] = df.apply(lambda row: row['m'] / n, axis=1)
     df = df.melt(id_vars=['m/n'], value_vars=['L**2',
                  'loc_co_norm_squared'], value_name="Sample complexity factor")
@@ -139,7 +139,7 @@ def plot_L_ratio(alpha):
     plt.figure(figsize=(10, 5))
     df = pd.DataFrame({'m': logspace(1, n-1, 100, base=10, integer=True),
                       'L**2': 0.0, 'loc_co_norm_squared': np.sum(alpha**2)})
-    df['L**2'] = df['m'].apply(lambda m:Bernoulli_prob_weights(alpha, m)[2])
+    df['L**2'] = df['m'].apply(lambda m:Optimized_Bernoulli_prob_weights(alpha, m)[2])
     df['Bernoulli'] = df.apply(lambda row: row['m'] / row['L**2'], axis=1)
     df['With replacement'] = df.apply(lambda row: row['m'] /
                                                  row['loc_co_norm_squared'], axis=1)

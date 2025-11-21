@@ -11,7 +11,7 @@ from pywt import wavedec2, waverec2, ravel_coeffs, unravel_coeffs
 from utils.utils_data import logspace, allcombinations, add_standard_attributes, repeat, soft_astype_df, run_local_df_experiment
 from utils_plot import df_vals
 
-from sampling_recov_functions import SF_func, SF_transpose_map, soft_threshold,Bernoulli_prob_weights 
+from sampling_recov_functions import SF_func, SF_transpose_map, soft_threshold,Optimized_Bernoulli_prob_weights 
 
 
 def lasso_wr_Fourier(n, m, indices, b: np.ndarray, x: np.ndarray, lambda_, d=None, max_iter=100000, tol=1e-5):
@@ -123,7 +123,7 @@ def experiment(data: ExperimentData) -> dict[str, Any]:
         assert m <= n
         if data['adapted_sampling']:
             assert "loc_co" in data
-            weights = Bernoulli_prob_weights(data['loc_co'], m)[0]
+            weights = Optimized_Bernoulli_prob_weights(data['loc_co'], m)[0]
             d = np.sqrt(m/(n*weights))
         else:
             weights = m/n

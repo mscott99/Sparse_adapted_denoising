@@ -5,7 +5,7 @@ from numpy.typing import NDArray
 import pandas as pd
 from scipy.fft import fft2
 
-from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights
+from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Optimized_Bernoulli_prob_weights
 from sparse_recov.uneven_sparse_experiment import threshold_vec, truncate_to_sparsity
 from sparse_recov.subspace_prior import compute_local_coherences
 

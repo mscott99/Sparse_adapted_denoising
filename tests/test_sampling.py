@@ -4,7 +4,7 @@ from numpy.typing import NDArray
 import pandas as pd
 from scipy.fft import fft2
 
-from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Bernoulli_prob_weights, sample_wor
+from sparse_recov.sampling_recov_functions import SF2_func, SF2_transpose_map, soft_threshold, Optimized_Bernoulli_prob_weights, sample_wor
 from sparse_recov import experiment, make_df
 
 
@@ -19,7 +19,7 @@ def test_bernoulli_prob_weights_basic():
     loc_co = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
     m = 3  # We want to sample 3 measurements
 
-    probs, J, Lsqr = Bernoulli_prob_weights(loc_co, m)
+    probs, J, Lsqr = Optimized_Bernoulli_prob_weights(loc_co, m)
 
     # Check return types
     assert isinstance(probs, np.ndarray)
@@ -44,7 +44,7 @@ def test_bernoulli_prob_weights_with_zeros():
     loc_co = np.array([0.0, 0.0, 0.3, 0.4, 0.5])
     m = 2  # We want to sample 2 measurements
 
-    probs, J, Lsqr = Bernoulli_prob_weights(loc_co, m)
+    probs, J, Lsqr = Optimized_Bernoulli_prob_weights(loc_co, m)
 
     # Check that zero coherence values have zero sampling probabilities
     assert probs[0] == 0
@@ -54,7 +54,7 @@ def test_bernoulli_prob_weights_with_zeros():
     # Only counting the non-zero positions
     assert np.isclose(np.sum(probs), m, rtol=0.1)
 
-    probs2, J, Lsqr = Bernoulli_prob_weights(loc_co, 3)
+    probs2, J, Lsqr = Optimized_Bernoulli_prob_weights(loc_co, 3)
     print(probs2)
     assert np.isclose(probs2, np.array([0, 0, 1, 1, 1])).all()
 
@@ -108,7 +108,7 @@ def test_bernoulli_prob_weights_edge_cases():
     loc_co = np.array([0.5, 0.5, 0.5, 0.5, 0.5])
     m = 3
 
-    probs, J, Lsqr = Bernoulli_prob_weights(loc_co, m)
+    probs, J, Lsqr = Optimized_Bernoulli_prob_weights(loc_co, m)
 
     # All probabilities should be equal in this case
     assert np.allclose(probs, probs[0])
@@ -120,7 +120,7 @@ def test_bernoulli_prob_weights_edge_cases():
     loc_co = np.array([0.1, 0.1, 0.1, 0.1, 10.0])
     m = 2
 
-    probs, J, Lsqr = Bernoulli_prob_weights(loc_co, m)
+    probs, J, Lsqr = Optimized_Bernoulli_prob_weights(loc_co, m)
 
     # The last position should have probability close to 1
     assert probs[-1] > 0.9
@@ -137,4 +137,4 @@ def test_bernoulli_prob_weights_assertion():
 
     # Should raise an assertion error
     with pytest.raises(AssertionError):
-        Bernoulli_prob_weights(loc_co, m)
+        Optimized_Bernoulli_prob_weights(loc_co, m)

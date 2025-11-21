@@ -14,7 +14,7 @@ from utils.utils_data import logspace, allcombinations, add_standard_attributes,
 from scipy.fft import fft2
 import spgl1
 
-from sparse_recov.sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Bernoulli_prob_weights, WaveletPartialFourier, sample_CS_matrix
+from sparse_recov.sampling_recov_functions import SF2_func, SDF2_func, SF2_transpose_map, SDF2_transpose_map, soft_threshold, Optimized_Bernoulli_prob_weights, WaveletPartialFourier, sample_CS_matrix
 
 
 def get_representative_points(sqt_n: int, level: int = 1) -> List[Tuple]:
@@ -47,7 +47,7 @@ def Haar_local_coherence(signal_shape, level: int):
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str}
+    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str, "preconditioner": str}
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -118,6 +118,7 @@ def make_df():
         'm': logspace(500, n, 7, integer=True),
         "sparsity": "top",
         "sampling_type": ["adjusted_Ber", "wor", "wr"],
+        "preconditioner": ["wr", "ber", "emp_wor"],
         "sampling_dist_type": "optimized",
     })
     df = repeat(df, 20)
@@ -198,7 +199,7 @@ def experiment(data: dict) -> dict[str, Any]:
     loc_co = Haar_local_coherence(true_signal.shape, data['level'])
 
     indices, d = sample_CS_matrix(
-        loc_co, m, data['sampling_type'], data['sampling_dist_type'])
+        loc_co, m, data['sampling_type'], data['sampling_dist_type'], data['preconditioner'])
 
     m_tld = indices.size
     SF = SF2_func(indices, m, n)
