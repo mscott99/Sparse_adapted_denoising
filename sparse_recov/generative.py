@@ -172,7 +172,7 @@ def make_df():
         "min_coherence_coeff": [0.0, 0.1, 1, 10],
     })
     ber_df = allcombinations({
-        'sampling_type': 'wor',
+        'sampling_type': 'Ber',
         'preconditioner': "Ber",
     })
     wor_df = allcombinations({
@@ -183,7 +183,8 @@ def make_df():
         'sampling_type': 'wr',
         'preconditioner': "wr",
     })
-    df = cross_merge_dfs(base_df, pd.concat([ber_df, wor_df, wr_df], ignore_index=True))
+    # df = cross_merge_dfs(base_df, pd.concat([ber_df, wor_df, wr_df], ignore_index=True))
+    df = cross_merge_dfs(base_df, ber_df)
     df = repeat(df, 20)
     # df['sampling_type'] = df['sampling_type'].astype('category')
     global_seed = 1234
