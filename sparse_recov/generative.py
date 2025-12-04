@@ -170,8 +170,8 @@ def make_df():
         # 'model_type': ['to_the_ground_no_co', 'higher_co_02'],  # Model type for the generator
         'model_type': 'to_the_ground_no_co',
         'sampling_dist_type': 'optimized',
-        "min_coherence_coeff": [0.0, 0.000001, 0.00001, 0.0001, 0.001,  0.1],
-        'numerical_eps': 0.0,
+        "min_coherence_coeff": 0.0,
+        'numerical_eps': [0.0, 1e-9, 1e-7, 1e-5, 1e-3, 1e-1],
     })
     ber_df = allcombinations({
         'sampling_type': 'Ber',
