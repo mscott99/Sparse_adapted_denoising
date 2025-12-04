@@ -218,7 +218,7 @@ def ber_precond(weights, m, n):
 # def get_preconditioner(probs, weights, precond_type):
 
 
-def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditioner) -> Tuple[NDArray[np.integer], NDArray]:
+def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditioner, numerical_eps) -> Tuple[NDArray[np.integer], NDArray]:
     flat_co = loc_co.ravel()
     n = len(flat_co)
     p = None
@@ -286,12 +286,12 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditione
     if preconditioner == "wr":
         assert p is not None
         d = np.zeros_like(p)
-        d[p > 0] = 1/np.sqrt(n * p[p > 0])
+        d[p > 0] = 1/np.sqrt(n * (p[p > 0] + numerical_eps))
     elif sampling_type == "wor" and preconditioner in ["empirical", "wor"]:
         assert p is not None
         indices, counts = sample_wor(p, m)
         d = np.zeros_like(p)
-        d[p > 0] = 1/np.sqrt(n * p[p > 0])
+        d[p > 0] = 1/np.sqrt(n * (p[p > 0] + numerical_eps))
         prec_c = np.sqrt(counts)
         # normalize so that the trace is n, like I.
         normalized_c = prec_c * n/np.sum(prec_c)
@@ -299,7 +299,7 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditione
     elif preconditioner in ["Ber", "adjusted_Ber"]:
         assert weights is not None
         d = np.zeros_like(weights)
-        d[weights > 0] = np.sqrt(m/(n*weights[weights > 0]))
+        d[weights > 0] = np.sqrt(m/(n*(weights[weights > 0] + numerical_eps * m)))
     elif preconditioner == "deterministic":
         assert weights is not None
         d = np.zeros_like(weights)
@@ -330,7 +330,7 @@ def sample_CS_matrix(loc_co, m, sampling_type, sampling_dist_type, preconditione
         pi_approx = np.maximum(pi_approx, 1e-20)               # safety
 
         # ---- preconditioning weights -----------------------------------------
-        d = np.sqrt(m / (n * pi_approx))
+        d = np.sqrt(m / (n * (pi_approx + numerical_eps*m)))
     else:
         raise NotImplementedError()
 

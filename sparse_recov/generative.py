@@ -137,6 +137,7 @@ ExperimentTypes = {
     'dataset': pd.CategoricalDtype(["CELEBA", "MNIST"]),
     'project_to_prior': bool,
     'min_coherence_coeff': float,
+    'numerical_eps': float,
 }
 
 
@@ -169,7 +170,8 @@ def make_df():
         # 'model_type': ['to_the_ground_no_co', 'higher_co_02'],  # Model type for the generator
         'model_type': 'to_the_ground_no_co',
         'sampling_dist_type': 'optimized',
-        "min_coherence_coeff": [0.0, 0.1, 1, 10],
+        "min_coherence_coeff": [0.0, 0.000001, 0.00001, 0.0001, 0.001,  0.1],
+        'numerical_eps': 0.0,
     })
     ber_df = allcombinations({
         'sampling_type': 'Ber',
@@ -272,7 +274,7 @@ def experiment(data: dict) -> dict[str, Any]:
     loc_co = get_fft_loc_coherences(generator, min=min_co, device=device)
     n = loc_co.size
     indices, d = sample_CS_matrix(
-        loc_co, m, data['sampling_type'], data['sampling_dist_type'], data['preconditioner'])
+        loc_co, m, data['sampling_type'], data['sampling_dist_type'], data['preconditioner'], data['numerical_eps'])
     if "prec_exponent" in data:
         d = (d**(-2))**data["prec_exponent"]
     d = torch.tensor(d).to(device)
