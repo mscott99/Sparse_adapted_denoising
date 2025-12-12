@@ -1,5 +1,5 @@
-# %%
 from matplotlib.colors import LogNorm
+from matplotlib.axes import Axes
 import numpy as np
 import torch
 import pandas as pd
@@ -12,14 +12,12 @@ import matplotlib.pyplot as plt
 from sparse_recov.sampling_recov_functions import Optimized_Bernoulli_prob_weights
 from utils.utils_data import logspace
 
-
 def Lsr(j, m, n, sorted_alpha):
     if m >= n:
         raise ValueError("m cannot be greater or equal to n")
     return m * np.sum(sorted_alpha[:j]**2) / (m - (n-j))
 
 # J = \max\left\{  j \in [n]: \frac{m \alpha_j^2}{L^2(j)} <  1\right\}
-
 
 def get_J(m, n, sorted_alpha):
     if m >= n:
@@ -56,11 +54,8 @@ def get_calculate_L(n, sorted_alpha):
 
 
 # %%
-n = 10000
-logspace(1, n-1, 1000, base=10, integer=True)
 
-
-def plot_L(alpha):
+def plot_L(alpha, ax:Axes):
     plt.figure(figsize=(10, 5))
     n = len(alpha)
     df = pd.DataFrame({'m': logspace(1, n-1, 1000, base=10, integer=True),
@@ -72,10 +67,10 @@ def plot_L(alpha):
                  'loc_co_norm_squared'], value_name="Sample complexity factor")
     # rename column y to val
     sns.lineplot(x='m/n', y='Sample complexity factor',
-                 data=df, hue='variable')
+                 data=df, hue='variable', ax=ax)
     # sns.lineplot(x='m', y='m', data=df, marker = 'o')
-    plt.xscale('log')
-    plt.yscale('log')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     # save as pdf plot
 
 def get_flower_batch(num):
@@ -91,9 +86,6 @@ def get_flower_batch(num):
         flowers, batch_size=num, shuffle=True)
     return next(iter(dataloader))[0]
 
-
-one_batch = get_flower_batch(20)
-one_batch.shape
 
 def get_Fourier_co(outputs):
     outputs_i = outputs.unsqueeze(1)  # (num_samples, 1, 28, 28)
@@ -111,12 +103,14 @@ def get_Fourier_co(outputs):
     loc_co = torch.max(loc_co, dim=0)[0]
     return loc_co.cpu().numpy()  # Return as numpy array
 
+n = 10000
+logspace(1, n-1, 1000, base=10, integer=True)
+one_batch = get_flower_batch(20)
+one_batch.shape
 max_co = get_Fourier_co(one_batch)
-
 ax = sns.heatmap(max_co[0,:,:], norm=LogNorm())
 ax.set_xticks([])
 ax.set_yticks([])
-# %%
 
 max_co_vec = max_co.flatten()
 max_co_vec.shape
@@ -124,16 +118,12 @@ max_co_vec.shape
 # perm = np.argsort(max_co_vec)
 # sorted_max_co_vec = max_co_vec[perm]
 
-plot_L(max_co_vec)
-plt.ylabel("Sample complexity factor")
-plt.title("Comparison of sample complexity factors")
-
 # %%
 # Examine explicitly the gain in sample complexity
 # For m \geq L^2 D, Let 'D' be the isolated sample complexity
 
 
-def plot_L_ratio(alpha):
+def plot_L_ratio(alpha, ax:Axes):
     # TODO Fix the with replacement to go through the whole domain.
     n = len(alpha)
     plt.figure(figsize=(10, 5))
@@ -150,15 +140,35 @@ def plot_L_ratio(alpha):
     df['Sampling'] = df['variable']
     assert isinstance(df, pd.DataFrame)
     # Invert the function by permuting x and y axis.
-    g = sns.lineplot(x='value', y='m', data=df, hue='Sampling')
-    plt.xscale('log')
-    plt.yscale('log')
+    sns.lineplot(x='value', y='m', data=df, hue='Sampling', ax= ax)
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     return g
 
+# f = plot_L_ratio(max_co_vec)
+# plt.xlabel("Increasing sample complexity")
+# plt.ylabel("True sample complexity bound")
+# plt.title("Numerical sample complexity bound")
 
-plot_L_ratio(max_co_vec)
-plt.xlabel("Sample complexity without the coherence factor")
-plt.ylabel("Final sample complexity")
-plt.title("Explicit sample complexity bound")
+# g = plot_L(max_co_vec)
+# g.set_ylabel("Sample complexity factor")
+# g.set_title("Comparison of sample complexity factors")
+
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5), sharex=False, sharey=False)
+
+
+plot_L(max_co_vec, ax=ax1)
+ax1.set_ylabel("Sample complexity factor")
+ax1.set_title("Comparison of sample complexity factors")
+
+plot_L_ratio(max_co_vec, ax=ax2)
+ax2.set_xlabel("Increasing sample complexity")
+ax2.set_ylabel("True sample complexity bound")
+ax2.set_title("Numerical sample complexity bound")
+
+
+fig.savefig("/Users/matthewscott/Obsidian/myVault/Files/numerical_complexity_bounds.pdf")
+
 #plt.savefig("/Users/matthewscott/Obsidian/myVault/Files/Sample_complexity_improvement.pdf")
 

@@ -117,8 +117,8 @@ def make_df():
     df = allcombinations({  # 'm' : 100,
         'm': logspace(500, n, 7, integer=True),
         "sparsity": "top",
-        "sampling_type": ["adjusted_Ber", "wor", "wr"],
-        "preconditioner": ["wr", "ber", "emp_wor"],
+        'sampling_type': 'wor',
+        'preconditioner': ["empirical", "Ber", "cond_poisson"],
         "sampling_dist_type": "optimized",
     })
     df = repeat(df, 20)
@@ -137,6 +137,7 @@ def make_df():
          "num_gpus": "0",
          "time": "02:00:00",
          "rows_per_worker": 10})
+
     df = soft_astype_df(df, ExperimentTypes)
     return df
 
