@@ -47,7 +47,8 @@ def Haar_local_coherence(signal_shape, level: int):
 
 
 ExperimentTypes = {"sqt_n": int, "k": int, "m": int, "m_tld": int, "sigma": float, "lambda_coeff": float, "level": int, "img": pd.CategoricalDtype(
-    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str, "preconditioner": str}
+    ["celeba", "phantom", "camera"]), 'experiment_fn_label': str, "sampling_type": pd.CategoricalDtype(["wor", "adjusted_Ber", "wr", "Ber"]), "emp_snr": float, "preconditioned_optimization": bool, "sampling_dist_type": str, "preconditioner": str, 'numerical_eps': float}
+
 
 # Using the functions above, make a function that takes a 2d ndarray, transforms it,
 # and truncates its sparsity level in the Haar basis to a specified sparsity level.
@@ -114,13 +115,20 @@ def make_df():
     sqt_n = 64
     n = sqt_n**2*3
     # k=1000
-    df = allcombinations({  # 'm' : 100,
+    base = allcombinations({
         'm': logspace(500, n, 7, integer=True),
         "sparsity": "top",
-        'sampling_type': 'wor',
-        'preconditioner': ["empirical", "Ber", "cond_poisson"],
         "sampling_dist_type": "optimized",
     })
+    df_wor = allcombinations({  # 'm' : 100,
+        'sampling_type': 'wor',
+        'preconditioner': ["empirical", "cond_poisson"],
+    })
+    df_ber = allcombinations({  # 'm' : 100,
+        'sampling_type': "adjusted_Ber",
+        'preconditioner': "Ber",
+    })
+    df = cross_merge_dfs(base, pd.concat([df_wor, df_ber], ignore_index=True))
     df = repeat(df, 20)
     global_seed = 1234
     np.random.seed(global_seed)
@@ -136,7 +144,9 @@ def make_df():
          "num_cpus": "1",
          "num_gpus": "0",
          "time": "02:00:00",
-         "rows_per_worker": 10})
+         "rows_per_worker": 10,
+         'numerical_eps': 0.0
+         })
 
     df = soft_astype_df(df, ExperimentTypes)
     return df
@@ -200,7 +210,7 @@ def experiment(data: dict) -> dict[str, Any]:
     loc_co = Haar_local_coherence(true_signal.shape, data['level'])
 
     indices, d = sample_CS_matrix(
-        loc_co, m, data['sampling_type'], data['sampling_dist_type'], data['preconditioner'])
+        loc_co, m, data['sampling_type'], data['sampling_dist_type'], data['preconditioner'], data['numerical_eps'])
 
     m_tld = indices.size
     SF = SF2_func(indices, m, n)

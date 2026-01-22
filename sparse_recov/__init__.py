@@ -1,9 +1,9 @@
-# from .uneven_sparse_experiment import make_df, experiment
+from .uneven_sparse_experiment import make_df, experiment
 from .convvae import get_model
 # from .optimization import make_df, experiment
 from .train_model import ConvVAE
-from .generative import make_df, experiment, get_fft_loc_coherences, ConvGenerator, ExperimentTypes
-# from .generative import get_fft_loc_coherences, Generator, ExperimentTypes
+# from .generative import make_df, experiment, get_fft_loc_coherences, ConvGenerator, ExperimentTypes
+from .generative import get_fft_loc_coherences, Generator, ExperimentTypes
 from .data_analysis import plot_on_facets, perform_log_least_squares_fit, add_log_fit_line_to_plot
 from .sampling_recov_functions import (
     S_transpose, SF_transpose_map, SF2_transpose_map, SDF2_transpose_map,

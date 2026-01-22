@@ -140,7 +140,7 @@ def plot_L_ratio(alpha, ax:Axes):
     df['Sampling'] = df['variable']
     assert isinstance(df, pd.DataFrame)
     # Invert the function by permuting x and y axis.
-    sns.lineplot(x='value', y='m', data=df, hue='Sampling', ax= ax)
+    g = sns.lineplot(x='value', y='m', data=df, hue='Sampling', ax= ax)
     ax.set_xscale('log')
     ax.set_yscale('log')
     return g
@@ -155,8 +155,8 @@ def plot_L_ratio(alpha, ax:Axes):
 # g.set_title("Comparison of sample complexity factors")
 
 
+sns.set_theme(style = "ticks",font_scale=1.5)
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 5), sharex=False, sharey=False)
-
 
 plot_L(max_co_vec, ax=ax1)
 ax1.set_ylabel("Sample complexity factor")
@@ -167,8 +167,7 @@ ax2.set_xlabel("Increasing sample complexity")
 ax2.set_ylabel("True sample complexity bound")
 ax2.set_title("Numerical sample complexity bound")
 
-
-fig.savefig("/Users/matthewscott/Obsidian/myVault/Files/numerical_complexity_bounds.pdf")
+# fig.savefig("/Users/matthewscott/Obsidian/myVault/Files/numerical_complexity_bounds.pdf")
 
 #plt.savefig("/Users/matthewscott/Obsidian/myVault/Files/Sample_complexity_improvement.pdf")
 

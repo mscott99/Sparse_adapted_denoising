@@ -1,5 +1,6 @@
 venv
 runs
+.molten.json
 *.dat
 data
 plots
