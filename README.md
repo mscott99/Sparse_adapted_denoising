@@ -31,9 +31,11 @@ Local coherences of the 2D Fourier basis with respect to Haar wavelets (log scal
 
 ## Running
 
-Each experiment module exports `make_df()`, a pandas DataFrame with one row per run configuration, and `experiment(row)`, which runs one row and returns its results. The rows run in parallel, locally or on a Slurm cluster, with [Experiments_on_Slurm](https://github.com/mscott99/Experiments_on_Slurm), whose `utils` package must be on the Python path.
+Each experiment module exports `make_df()`, a pandas DataFrame with one row per run configuration, and `experiment(row)`, which runs one row and returns its results. The rows run in parallel, locally or on a Slurm cluster, with [Experiments_on_Slurm](https://github.com/mscott99/Experiments_on_Slurm). The data and plotting helpers (`utils_data`, `utils_plot`) come from [mscott99/utils](https://github.com/mscott99/utils), cloned as a folder named `utils` on the Python path.
 
 ```sh
+git clone https://github.com/mscott99/utils.git ../utils
+export PYTHONPATH=..:$PYTHONPATH
 pip install -r local_requirements.txt
 python run_local.py   # results go to data/last_sparse.pickle
 pytest tests/
