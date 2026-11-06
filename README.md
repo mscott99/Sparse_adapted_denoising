@@ -31,14 +31,26 @@ Local coherences of the 2D Fourier basis with respect to Haar wavelets (log scal
 
 ## Running
 
-Each experiment module exports `make_df()`, a pandas DataFrame with one row per run configuration, and `experiment(row)`, which runs one row and returns its results. The rows run in parallel, locally or on a Slurm cluster, with [Experiments_on_Slurm](https://github.com/mscott99/Experiments_on_Slurm). The data and plotting helpers (`utils_data`, `utils_plot`) come from [mscott99/utils](https://github.com/mscott99/utils), cloned as a folder named `utils` on the Python path.
+Each experiment module exports `make_df()`, a pandas DataFrame with one row per run configuration, and `experiment(row)`, which runs one row and returns its results. The rows run in parallel, locally or on a Slurm cluster, with [Experiments_on_Slurm](https://github.com/mscott99/Experiments_on_Slurm). The data and plotting helpers live in `utils/`.
+
+The default experiment (`sparse_recov/uneven_sparse_experiment.py`) recovers CelebA faces, so it needs CelebA on disk, in torchvision's layout: a folder `celeba/` inside the folder `DATA_DIR` points to. Run everything from the repository root:
 
 ```sh
-git clone https://github.com/mscott99/utils.git ../utils
-export PYTHONPATH=..:$PYTHONPATH
-pip install -r local_requirements.txt
-python run_local.py   # results go to data/last_sparse.pickle
-pytest tests/
+git clone https://github.com/mscott99/Sparse_adapted_denoising.git
+cd Sparse_adapted_denoising
+python3 -m venv venv && . venv/bin/activate
+pip install -r local_requirements.txt   # on Linux without a GPU, add --extra-index-url https://download.pytorch.org/whl/cpu
+
+# CelebA (about 1.4 GB zipped, 1.7 GB unpacked), once:
+export DATA_DIR=$HOME/data
+pip install gdown
+python -c "import os, torchvision; torchvision.datasets.CelebA(os.environ['DATA_DIR'], split='all', target_type='identity', download=True)"
+
+mkdir -p data
+python run_local.py         # one run of the default experiment, saved to data/last_sparse.pickle
+python -m pytest tests/
 ```
+
+`python -m pytest` (not bare `pytest`) puts the repository root on the path, so `sparse_recov` and `utils` import.
 
 `run_server.sh <branch>` checks out a branch on a remote machine, runs `run_server.py` there and copies the resulting DataFrame back as a pickle. Its paths are set for the author's machines.

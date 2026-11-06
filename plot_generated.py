@@ -3,7 +3,7 @@ from sparse_recov.train_model import ConvVAE
 from sparse_recov.generative import get_fft_loc_coherences
 import matplotlib.pyplot as plt
 from seaborn import heatmap, histplot
-from utils_plot import LogNorm
+from utils.utils_plot import LogNorm
 import numpy as np
 import seaborn as sns
 
